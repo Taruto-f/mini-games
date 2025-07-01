@@ -336,7 +336,14 @@
             socket.on('joinedRoom', ({ roomId: joinedId, playerIndex: idx }) => {
                 playerIndex = idx;
                 isMyTurn = (playerIndex === 0); // 0:黒, 1:白
-                onlineStatus.textContent = `ルーム「${joinedId}」に${playerIndex === 0 ? '黒(先手)' : '白(後手)'}で参加`;
+                if (isCreate) {
+                    onlineStatus.textContent = 'ルーム作成しました';
+                    setTimeout(() => {
+                        onlineStatus.textContent = `ルーム「${joinedId}」に${playerIndex === 0 ? '黒(先手)' : '白(後手)'}で参加`;
+                    }, 1200);
+                } else {
+                    onlineStatus.textContent = `ルーム「${joinedId}」に${playerIndex === 0 ? '黒(先手)' : '白(後手)'}で参加`;
+                }
             });
             socket.on('playerCount', (count) => {
                 if (count < 2) {
