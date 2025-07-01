@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>オセロゲーム</title>
+    <!-- Socket.IOクライアント -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a1a 0%, #3a5d2c 100%);
+            margin: 0;
+        }
+
+        h1 {
+            color: #fff;
+            letter-spacing: 0.1em;
+            text-shadow: 2px 2px 8px #222;
+            margin-bottom: 10px;
+        }
+
+        #game-info {
+            display: flex;
+            justify-content: space-around;
+            width: 370px;
+            margin-bottom: 18px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #fff;
+            background: rgba(30, 60, 30, 0.7);
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+            padding: 8px 0;
+        }
+
+        #current-player {
+            color: #ffd700;
+            text-shadow: 1px 1px 4px #333;
+        }
+
+        #score-black,
+        #score-white {
+            margin-left: 10px;
+            font-size: 1.1em;
+            padding: 2px 8px;
+            border-radius: 6px;
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 44px);
+            grid-template-rows: repeat(8, 44px);
+            width: 352px;
+            height: 352px;
+            border: 6px solid #b8860b;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #357a38 60%, #1b3c1b 100%);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 8px #222 inset;
+            position: relative;
+        }
+
+        .cell {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 1px solid rgba(0, 0, 0, 0.15);
+            box-sizing: border-box;
+            position: relative;
+            background: repeating-linear-gradient(135deg, #2e8b57 0 8px, #276644 8px 16px);
+        }
+
+        .cell.valid-move {
+            background: radial-gradient(circle, #ffe066 40%, #2e8b57 100%);
+            box-shadow: 0 0 8px 2px #ffe06699;
+        }
+
+        .cell.valid-move:hover {
+            background: radial-gradient(circle, #fffbe6 60%, #ffe066 100%);
+        }
+
+        .piece {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #444 60%, #000 100%);
+            box-shadow: 0 2px 8px #111, 0 0 0 2px #fff3 inset;
+            border: 2px solid #b8860b;
+            transition: transform 0.3s cubic-bezier(.68, -0.55, .27, 1.55), box-shadow 0.2s;
+            transform-style: preserve-3d;
+            backface-visibility: hidden;
+            position: relative;
+        }
+
+        .piece.white {
+            background: radial-gradient(circle at 30% 30%, #fff 70%, #bbb 100%);
+            box-shadow: 0 2px 8px #888, 0 0 0 2px #fff8 inset;
+            border: 2px solid #b8860b;
+        }
+
+        .piece.flipped {
+            animation: flip 0.3s cubic-bezier(.68, -0.55, .27, 1.55);
+        }
+
+        @keyframes flip {
+            0% {
+                transform: rotateY(0deg);
+            }
+
+            50% {
+                transform: rotateY(90deg) scale(1.1);
+            }
+
+            100% {
+                transform: rotateY(180deg);
+            }
+        }
+
+        #message-area {
+            margin-top: 22px;
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #ffd700;
+            min-height: 36px;
+            text-shadow: 1px 1px 6px #222;
+        }
+
+        #reset-button,
+        #pass-button {
+            margin-top: 18px;
+            padding: 12px 28px;
+            font-size: 1.1em;
+            cursor: pointer;
+            background: linear-gradient(90deg, #ffd700 60%, #b8860b 100%);
+            color: #222;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px #2226;
+            transition: background 0.3s, color 0.2s;
+        }
+
+        #reset-button:hover,
+        #pass-button:hover {
+            background: linear-gradient(90deg, #fffbe6 60%, #ffd700 100%);
+            color: #000;
+        }
+
+        #pass-button {
+            background: linear-gradient(90deg, #fffbe6 60%, #ffd700 100%);
+            color: #222;
+            margin-left: 12px;
+        }
+
+        #pass-button:disabled {
+            background: #cccccc;
+            color: #888;
+            cursor: not-allowed;
+        }
+
+        /* 盤面の座標表示 */
+        #board::before,
+        #board::after {
+            content: '';
+            position: absolute;
+            pointer-events: none;
+        }
+
+        #board::before {
+            left: -28px;
+            top: 0;
+            width: 24px;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        #board::after {
+            top: 100%;
+            left: 0;
+            width: 100%;
+            height: 24px;
+            display: flex;
+            flex-direction: row;
+            justify-content: space-between;
+        }
+
+        /* スマホ対応 */
+        @media (max-width: 500px) {
+            #board {
+                width: 98vw;
+                height: 98vw;
+                min-width: 240px;
+                min-height: 240px;
+                max-width: 98vw;
+                max-height: 98vw;
+                grid-template-columns: repeat(8, 1fr);
+                grid-template-rows: repeat(8, 1fr);
+            }
+
+            .cell {
+                width: 100%;
+                height: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>オセロゲーム</h1>
+    <!-- オンライン対戦UI -->
+    <div id="online-ui" style="margin-bottom: 18px; display: flex; flex-direction: column; align-items: center;">
+        <div style="margin-bottom: 6px;">
+            <label><input type="radio" name="mode" value="offline" checked> オフライン</label>
+            <label style="margin-left: 12px;"><input type="radio" name="mode" value="online"> オンライン</label>
+        </div>
+        <div id="online-controls" style="display: none; align-items: center; gap: 8px;">
+            <input id="room-id-input" type="text" placeholder="ルームID" maxlength="12" style="width: 100px;">
+            <button id="create-room-btn">ルーム作成</button>
+            <button id="join-room-btn">参加</button>
+            <span id="online-status" style="margin-left: 10px; color: #007bff;"></span>
+        </div>
+    </div>
+    <div id="game-info">
+        <span id="current-player">黒の番</span>
+        <div>黒: <span id="score-black">2</span></div>
+        <div>白: <span id="score-white">2</span></div>
+    </div>
+    <div id="board">
+    </div>
+    <div id="message-area"></div>
+    <div>
+        <button id="reset-button">リセット</button>
+        <button id="pass-button" disabled>パス</button>
+    </div>
+
+    <script>
+        const boardElement = document.getElementById('board');
+        const currentPlayerDisplay = document.getElementById('current-player');
+        const scoreBlackDisplay = document.getElementById('score-black');
+        const scoreWhiteDisplay = document.getElementById('score-white');
+        const messageArea = document.getElementById('message-area');
+        const resetButton = document.getElementById('reset-button');
+        const passButton = document.getElementById('pass-button');
+
+        let board = []; // 8x8の配列で盤面の状態を管理 (0:空, 1:黒, 2:白)
+        const EMPTY = 0;
+        const BLACK = 1;
+        const WHITE = 2;
+
+        let currentPlayer = BLACK; // 1:黒, 2:白
+        let gameOver = false;
+
+        const directions = [
+            [-1, -1], [-1, 0], [-1, 1], // 上、左上、右上
+            [0, -1], [0, 1], // 左、右
+            [1, -1], [1, 0], [1, 1] // 下、左下、右下
+        ];
+
+        // オンライン対戦用変数
+        let socket = null;
+        let isOnline = false;
+        let roomId = '';
+        let playerIndex = null; // 0:黒, 1:白
+        let isMyTurn = true;
+        let onlineGameActive = false;
+
+        // UI要素取得
+        const modeRadios = document.getElementsByName('mode');
+        const onlineControls = document.getElementById('online-controls');
+        const roomIdInput = document.getElementById('room-id-input');
+        const createRoomBtn = document.getElementById('create-room-btn');
+        const joinRoomBtn = document.getElementById('join-room-btn');
+        const onlineStatus = document.getElementById('online-status');
+
+        // モード切替
+        modeRadios.forEach(radio => {
+            radio.addEventListener('change', () => {
+                if (radio.value === 'online') {
+                    isOnline = true;
+                    onlineControls.style.display = 'flex';
+                    resetOnlineVars();
+                    initializeGame();
+                } else {
+                    isOnline = false;
+                    onlineControls.style.display = 'none';
+                    if (socket) socket.disconnect();
+                    resetOnlineVars();
+                    initializeGame();
+                }
+            });
+        });
+
+        function resetOnlineVars() {
+            roomId = '';
+            playerIndex = null;
+            isMyTurn = true;
+            onlineGameActive = false;
+            onlineStatus.textContent = '';
+        }
+
+        // ルーム作成
+        createRoomBtn.addEventListener('click', () => {
+            if (!roomIdInput.value) {
+                onlineStatus.textContent = 'ルームIDを入力してください';
+                return;
+            }
+            connectSocket(roomIdInput.value, true);
+        });
+        // ルーム参加
+        joinRoomBtn.addEventListener('click', () => {
+            if (!roomIdInput.value) {
+                onlineStatus.textContent = 'ルームIDを入力してください';
+                return;
+            }
+            connectSocket(roomIdInput.value, false);
+        });
+
+        function connectSocket(id, isCreate) {
+            if (socket) socket.disconnect();
+            socket = io('http://localhost:3000');
+            roomId = id;
+            onlineStatus.textContent = 'サーバー接続中...';
+            socket.emit('joinRoom', { roomId, gameType: 'othello' });
+
+            socket.on('joinedRoom', ({ roomId: joinedId, playerIndex: idx }) => {
+                playerIndex = idx;
+                isMyTurn = (playerIndex === 0); // 0:黒, 1:白
+                onlineStatus.textContent = `ルーム「${joinedId}」に${playerIndex === 0 ? '黒(先手)' : '白(後手)'}で参加`;
+            });
+            socket.on('playerCount', (count) => {
+                if (count < 2) {
+                    onlineStatus.textContent = '対戦相手待ち...';
+                    onlineGameActive = false;
+                }
+            });
+            socket.on('startGame', () => {
+                onlineGameActive = true;
+                isMyTurn = (playerIndex === 0);
+                initializeGame();
+                onlineStatus.textContent = '対戦開始！';
+            });
+            socket.on('updateState', (state) => {
+                syncFromOnlineState(state);
+            });
+            socket.on('roomFull', () => {
+                onlineStatus.textContent = 'このルームは満員です';
+                socket.disconnect();
+            });
+            socket.on('disconnect', () => {
+                onlineStatus.textContent = 'サーバー切断';
+                onlineGameActive = false;
+            });
+        }
+
+        // セルクリック処理の上書き
+        function handleCellClickOnline(e) {
+            if (!onlineGameActive || !isMyTurn || gameOver) return;
+            handleCellClick(e);
+            sendOnlineState();
+            isMyTurn = false;
+        }
+
+        // --- ゲーム初期化 ---
+        function initializeGame() {
+            board = Array(8).fill(0).map(() => Array(8).fill(EMPTY));
+
+            // 初期配置
+            board[3][3] = WHITE;
+            board[3][4] = BLACK;
+            board[4][3] = BLACK;
+            board[4][4] = WHITE;
+
+            currentPlayer = BLACK;
+            gameOver = false;
+            messageArea.textContent = '';
+            passButton.disabled = true; // パスボタンを無効化
+            renderBoard();
+            updateGameInfo();
+        }
+
+        // --- 盤面描画 ---
+        function renderBoard() {
+            boardElement.innerHTML = ''; // 既存のセルをクリア
+            board.forEach((row, r) => {
+                row.forEach((cellValue, c) => {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    if (isOnline) {
+                        cell.addEventListener('click', handleCellClickOnline);
+                    } else {
+                        cell.addEventListener('click', handleCellClick);
+                    }
+
+                    if (cellValue === BLACK) {
+                        const piece = document.createElement('div');
+                        piece.classList.add('piece');
+                        cell.appendChild(piece);
+                    } else if (cellValue === WHITE) {
+                        const piece = document.createElement('div');
+                        piece.classList.add('piece', 'white');
+                        cell.appendChild(piece);
+                    }
+                    boardElement.appendChild(cell);
+                });
+            });
+            highlightValidMoves();
+        }
+
+        // --- 駒のカウントと表示更新 ---
+        function updateGameInfo() {
+            let blackCount = 0;
+            let whiteCount = 0;
+            board.forEach(row => {
+                row.forEach(cellValue => {
+                    if (cellValue === BLACK) blackCount++;
+                    else if (cellValue === WHITE) whiteCount++;
+                });
+            });
+            scoreBlackDisplay.textContent = blackCount;
+            scoreWhiteDisplay.textContent = whiteCount;
+
+            if (!gameOver) {
+                currentPlayerDisplay.textContent = `${currentPlayer === BLACK ? '黒' : '白'}の番`;
+                currentPlayerDisplay.style.color = currentPlayer === BLACK ? '#000' : '#007bff';
+            }
+        }
+
+        // --- 有効な手をハイライト表示 ---
+        function highlightValidMoves() {
+            document.querySelectorAll('.cell.valid-move').forEach(cell => {
+                cell.classList.remove('valid-move');
+            });
+
+            if (gameOver) return;
+
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if (isValidMove(r, c, currentPlayer)) {
+                        const cellElement = boardElement.children[r * 8 + c];
+                        if (cellElement) {
+                            cellElement.classList.add('valid-move');
+                        }
+                    }
+                }
+            }
+        }
+
+        // --- 有効な手かどうかの判定 ---
+        function isValidMove(r, c, player) {
+            if (board[r][c] !== EMPTY) return false; // すでに駒がある
+
+            const opponent = player === BLACK ? WHITE : BLACK;
+            let canFlip = false;
+
+            for (const [dr, dc] of directions) {
+                let currentR = r + dr;
+                let currentC = c + dc;
+                let foundOpponent = false; // 相手の駒を見つけたか
+
+                // 盤面の範囲内で、相手の駒が続く限り進む
+                while (currentR >= 0 && currentR < 8 && currentC >= 0 && currentC < 8 && board[currentR][currentC] === opponent) {
+                    currentR += dr;
+                    currentC += dc;
+                    foundOpponent = true;
+                }
+
+                // 相手の駒が見つかっていて、さらにその先に自分の駒がある場合
+                if (foundOpponent && currentR >= 0 && currentR < 8 && currentC >= 0 && currentC < 8 && board[currentR][currentC] === player) {
+                    canFlip = true;
+                    break;
+                }
+            }
+            return canFlip;
+        }
+
+        // --- 駒を反転させるロジック ---
+        function flipPieces(r, c, player) {
+            const opponent = player === BLACK ? WHITE : BLACK;
+            let flipped = false;
+
+            for (const [dr, dc] of directions) {
+                let piecesToFlip = [];
+                let currentR = r + dr;
+                let currentC = c + dc;
+
+                // まず隣が相手の駒かどうか
+                while (
+                    currentR >= 0 && currentR < 8 &&
+                    currentC >= 0 && currentC < 8 &&
+                    board[currentR][currentC] === opponent
+                ) {
+                    piecesToFlip.push([currentR, currentC]);
+                    currentR += dr;
+                    currentC += dc;
+                }
+
+                // その先に自分の駒があれば反転
+                if (
+                    piecesToFlip.length > 0 &&
+                    currentR >= 0 && currentR < 8 &&
+                    currentC >= 0 && currentC < 8 &&
+                    board[currentR][currentC] === player
+                ) {
+                    for (const [fr, fc] of piecesToFlip) {
+                        board[fr][fc] = player;
+                        // アニメーション用クラス付与
+                        const cellIndex = fr * 8 + fc;
+                        const cell = boardElement.children[cellIndex];
+                        if (cell && cell.firstChild) {
+                            cell.firstChild.classList.add('flipped');
+                            // アニメーション後にクラスを外す
+                            setTimeout(() => {
+                                cell.firstChild.classList.remove('flipped');
+                            }, 300);
+                        }
+                    }
+                    flipped = true;
+                }
+            }
+            return flipped;
+        }
+
+        // オンライン状態を送信
+        function sendOnlineState() {
+            if (socket && roomId) {
+                socket.emit('syncState', {
+                    roomId,
+                    state: {
+                        board,
+                        currentPlayer,
+                        gameOver,
+                    }
+                });
+            }
+        }
+        // サーバーから受信した状態で同期
+        function syncFromOnlineState(state) {
+            board = state.board;
+            currentPlayer = state.currentPlayer;
+            gameOver = state.gameOver;
+            renderBoard();
+            updateGameInfo();
+            // ターン管理
+            isMyTurn = (playerIndex === 0 && currentPlayer === BLACK) || (playerIndex === 1 && currentPlayer === WHITE);
+        }
+        // リセットボタンも同期
+        resetButton.addEventListener('click', () => {
+            if (isOnline && onlineGameActive) {
+                initializeGame();
+                sendOnlineState();
+            } else {
+                initializeGame();
+            }
+        });
+    </script>
+</body>
+
+</html>

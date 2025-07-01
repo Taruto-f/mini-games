@@ -1,0 +1,13 @@
+{
+    "name": "mini-games-server",
+    "version": "1.0.0",
+    "description": "3目並べ・オセロ両対応のオンライン対戦サーバー",
+    "main": "index.js",
+    "scripts": {
+        "start": "node index.js"
+    },
+    "dependencies": {
+        "express": "^4.18.2",
+        "socket.io": "^4.7.5"
+    }
+}
