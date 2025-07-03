@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>チェス</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            background: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            margin-bottom: 18px;
+            letter-spacing: 0.2em;
+        }
+
+        .chess-board {
+            display: grid;
+            grid-template-columns: repeat(8, 48px);
+            grid-template-rows: repeat(8, 48px);
+            border: 4px solid #444;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px #4444;
+            margin-bottom: 18px;
+        }
+
+        .cell {
+            width: 48px;
+            height: 48px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .cell.white {
+            background: #f0d9b5;
+        }
+
+        .cell.black {
+            background: #b58863;
+        }
+
+        .cell.selected {
+            background: #ffe066 !important;
+            box-shadow: 0 0 0 2px #ffb300 inset;
+        }
+
+        .cell.move-option {
+            background: #b2e672 !important;
+        }
+
+        .piece {
+            font-size: 1.3em;
+            font-weight: bold;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #turn-info {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+
+        #reset-btn,
+        #resign-btn {
+            padding: 8px 24px;
+            font-size: 1em;
+            border-radius: 8px;
+            border: none;
+            background: #444;
+            color: #fff;
+            cursor: pointer;
+            margin-right: 8px;
+        }
+
+        #reset-btn:hover,
+        #resign-btn:hover {
+            background: #222;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>チェス</h1>
+    <div id="turn-info">White's turn</div>
+    <div class="chess-board" id="board"></div>
+    <button id="reset-btn">リセット</button>
+    <button id="resign-btn">投了</button>
+    <script>
+        // 駒の種類と表示（Unicode）
+        const PIECES = {
+            wK: '♔', wQ: '♕', wR: '♖', wB: '♗', wN: '♘', wP: '♙',
+            bK: '♚', bQ: '♛', bR: '♜', bB: '♝', bN: '♞', bP: '♟',
+        };
+        const PROMOTION_CHOICES = ['Q', 'R', 'B', 'N'];
+        const PROMOTION_NAMES = { Q: 'クイーン', R: 'ルーク', B: 'ビショップ', N: 'ナイト' };
+        const INITIAL_BOARD = [
+            ['bR', 'bN', 'bB', 'bQ', 'bK', 'bB', 'bN', 'bR'],
+            ['bP', 'bP', 'bP', 'bP', 'bP', 'bP', 'bP', 'bP'],
+            [null, null, null, null, null, null, null, null],
+            [null, null, null, null, null, null, null, null],
+            [null, null, null, null, null, null, null, null],
+            [null, null, null, null, null, null, null, null],
+            ['wP', 'wP', 'wP', 'wP', 'wP', 'wP', 'wP', 'wP'],
+            ['wR', 'wN', 'wB', 'wQ', 'wK', 'wB', 'wN', 'wR']
+        ];
+        let board = [];
+        let turn = 'w';
+        let selected = null;
+        let moveOptions = [];
+        let gameOver = false;
+        let castlingRights = { wK: true, wQ: true, bK: true, bQ: true }; // K: kingside, Q: queenside
+        let kingMoved = { w: false, b: false };
+        let rookMoved = { w0: false, w7: false, b0: false, b7: false };
+        let enPassant = null; // {row, col} or null
+        function deepCopyBoard(src) {
+            return src.map(row => row.slice());
+        }
+        function resetBoard() {
+            board = deepCopyBoard(INITIAL_BOARD);
+            turn = 'w';
+            selected = null;
+            moveOptions = [];
+            gameOver = false;
+            castlingRights = { wK: true, wQ: true, bK: true, bQ: true };
+            kingMoved = { w: false, b: false };
+            rookMoved = { w0: false, w7: false, b0: false, b7: false };
+            enPassant = null;
+            render();
+            document.getElementById('turn-info').textContent = "White's turn";
+        }
+        function render() {
+            const boardDiv = document.getElementById('board');
+            boardDiv.innerHTML = '';
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell ' + ((r + c) % 2 === 0 ? 'white' : 'black');
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    if (selected && selected.row === r && selected.col === c) {
+                        cell.classList.add('selected');
+                    }
+                    if (moveOptions.some(opt => opt.row === r && opt.col === c)) {
+                        cell.classList.add('move-option');
+                    }
+                    const piece = board[r][c];
+                    if (piece) {
+                        const pieceDiv = document.createElement('div');
+                        pieceDiv.className = 'piece';
+                        pieceDiv.textContent = PIECES[piece];
+                        cell.appendChild(pieceDiv);
+                    }
+                    cell.addEventListener('click', handleCellClick);
+                    boardDiv.appendChild(cell);
+                }
+            }
+            if (gameOver) {
+                document.getElementById('turn-info').textContent += ' (Game Over)';
+            }
+        }
+        function handleCellClick(e) {
+            if (gameOver) return;
+            const r = parseInt(e.currentTarget.dataset.row);
+            const c = parseInt(e.currentTarget.dataset.col);
+            const piece = board[r][c];
+            if (selected) {
+                if (moveOptions.some(opt => opt.row === r && opt.col === c)) {
+                    const from = { ...selected };
+                    const to = { row: r, col: c };
+                    let movedPiece = board[from.row][from.col];
+                    // キャスリング
+                    if (movedPiece[1] === 'K' && Math.abs(to.col - from.col) === 2) {
+                        // kingside
+                        if (to.col === 6) {
+                            board[from.row][5] = board[from.row][7];
+                            board[from.row][7] = null;
+                        } else if (to.col === 2) { // queenside
+                            board[from.row][3] = board[from.row][0];
+                            board[from.row][0] = null;
+                        }
+                        kingMoved[turn] = true;
+                        castlingRights[turn + 'K'] = false;
+                        castlingRights[turn + 'Q'] = false;
+                    }
+                    // アンパッサン
+                    if (movedPiece[1] === 'P' && enPassant && to.row === enPassant.row && to.col === enPassant.col) {
+                        board[from.row][to.col] = null;
+                    }
+                    // プロモーション
+                    if (movedPiece[1] === 'P' && (to.row === 0 || to.row === 7)) {
+                        let promote = prompt('昇格する駒を選んでください: Q(クイーン), R(ルーク), B(ビショップ), N(ナイト)', 'Q');
+                        if (!PROMOTION_CHOICES.includes(promote)) promote = 'Q';
+                        movedPiece = turn + promote;
+                    }
+                    // 移動
+                    board[to.row][to.col] = movedPiece;
+                    board[from.row][from.col] = null;
+                    // 移動フラグ
+                    if (movedPiece[1] === 'K') {
+                        kingMoved[turn] = true;
+                        castlingRights[turn + 'K'] = false;
+                        castlingRights[turn + 'Q'] = false;
+                    }
+                    if (movedPiece[1] === 'R') {
+                        if (from.col === 0) { rookMoved[turn + '0'] = true; castlingRights[turn + 'Q'] = false; }
+                        if (from.col === 7) { rookMoved[turn + '7'] = true; castlingRights[turn + 'K'] = false; }
+                    }
+                    // アンパッサン権
+                    if (movedPiece[1] === 'P' && Math.abs(to.row - from.row) === 2) {
+                        enPassant = { row: (from.row + to.row) / 2, col: from.col };
+                    } else {
+                        enPassant = null;
+                    }
+                    turn = (turn === 'w') ? 'b' : 'w';
+                    selected = null;
+                    moveOptions = [];
+                    render();
+                    checkStatus();
+                    return;
+                } else if (piece && piece[0] === turn) {
+                    selected = { row: r, col: c };
+                    moveOptions = getMoveOptions(selected);
+                    render();
+                    return;
+                } else {
+                    selected = null;
+                    moveOptions = [];
+                    render();
+                    return;
+                }
+            } else {
+                if (piece && piece[0] === turn) {
+                    selected = { row: r, col: c };
+                    moveOptions = getMoveOptions(selected);
+                    render();
+                }
+            }
+        }
+        // 駒ごとの移動可能マス（キャスリング・アンパッサン・プロモ対応）
+        function getMoveOptions(from) {
+            const piece = board[from.row][from.col];
+            if (!piece) return [];
+            const color = piece[0];
+            const type = piece[1];
+            const res = [];
+            const forward = color === 'w' ? -1 : 1;
+            // ポーン
+            if (type === 'P') {
+                const nr = from.row + forward;
+                if (nr >= 0 && nr < 8 && !board[nr][from.col]) {
+                    res.push({ row: nr, col: from.col });
+                }
+                // 2マス進み
+                if ((color === 'w' && from.row === 6) || (color === 'b' && from.row === 1)) {
+                    if (!board[from.row + forward][from.col] && !board[from.row + 2 * forward][from.col]) {
+                        res.push({ row: from.row + 2 * forward, col: from.col });
+                    }
+                }
+                // 取る
+                for (const dc of [-1, 1]) {
+                    const nc = from.col + dc;
+                    if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && board[nr][nc] && board[nr][nc][0] !== color) {
+                        res.push({ row: nr, col: nc });
+                    }
+                }
+                // アンパッサン
+                if (enPassant && Math.abs(enPassant.col - from.col) === 1 && enPassant.row === from.row + forward) {
+                    res.push({ row: enPassant.row, col: enPassant.col });
+                }
+            } else if (type === 'N') {
+                for (const [dr, dc] of [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]]) {
+                    const nr = from.row + dr;
+                    const nc = from.col + dc;
+                    if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && (!board[nr][nc] || board[nr][nc][0] !== color)) {
+                        res.push({ row: nr, col: nc });
+                    }
+                }
+            } else if (type === 'B') {
+                for (const [dr, dc] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+                    for (let i = 1; i < 8; i++) {
+                        const nr = from.row + dr * i;
+                        const nc = from.col + dc * i;
+                        if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) break;
+                        if (!board[nr][nc]) {
+                            res.push({ row: nr, col: nc });
+                        } else {
+                            if (board[nr][nc][0] !== color) res.push({ row: nr, col: nc });
+                            break;
+                        }
+                    }
+                }
+            } else if (type === 'R') {
+                for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                    for (let i = 1; i < 8; i++) {
+                        const nr = from.row + dr * i;
+                        const nc = from.col + dc * i;
+                        if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) break;
+                        if (!board[nr][nc]) {
+                            res.push({ row: nr, col: nc });
+                        } else {
+                            if (board[nr][nc][0] !== color) res.push({ row: nr, col: nc });
+                            break;
+                        }
+                    }
+                }
+            } else if (type === 'Q') {
+                for (const [dr, dc] of [[1, 1], [1, -1], [-1, 1], [-1, -1], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                    for (let i = 1; i < 8; i++) {
+                        const nr = from.row + dr * i;
+                        const nc = from.col + dc * i;
+                        if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) break;
+                        if (!board[nr][nc]) {
+                            res.push({ row: nr, col: nc });
+                        } else {
+                            if (board[nr][nc][0] !== color) res.push({ row: nr, col: nc });
+                            break;
+                        }
+                    }
+                }
+            } else if (type === 'K') {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        if (dr === 0 && dc === 0) continue;
+                        const nr = from.row + dr;
+                        const nc = from.col + dc;
+                        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && (!board[nr][nc] || board[nr][nc][0] !== color)) {
+                            res.push({ row: nr, col: nc });
+                        }
+                    }
+                }
+                // キャスリング
+                if (!kingMoved[color]) {
+                    // kingside
+                    if (castlingRights[color + 'K'] &&
+                        !board[from.row][from.col + 1] && !board[from.row][from.col + 2] &&
+                        board[from.row][from.col + 3] && board[from.row][from.col + 3][1] === 'R' && !rookMoved[color + '7']) {
+                        if (!isAttacked(from.row, from.col, color) && !isAttacked(from.row, from.col + 1, color) && !isAttacked(from.row, from.col + 2, color)) {
+                            res.push({ row: from.row, col: from.col + 2 });
+                        }
+                    }
+                    // queenside
+                    if (castlingRights[color + 'Q'] &&
+                        !board[from.row][from.col - 1] && !board[from.row][from.col - 2] && !board[from.row][from.col - 3] &&
+                        board[from.row][from.col - 4] && board[from.row][from.col - 4][1] === 'R' && !rookMoved[color + '0']) {
+                        if (!isAttacked(from.row, from.col, color) && !isAttacked(from.row, from.col - 1, color) && !isAttacked(from.row, from.col - 2, color)) {
+                            res.push({ row: from.row, col: from.col - 2 });
+                        }
+                    }
+                }
+            }
+            // 自分のキングが取られる手は除外
+            return res.filter(move => !wouldBeInCheck(from, move, color));
+        }
+        // そのマスが相手の利きに入っているか
+        function isAttacked(row, col, color) {
+            const opp = color === 'w' ? 'b' : 'w';
+            for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+                const p = board[r][c];
+                if (p && p[0] === opp) {
+                    const moves = getRawMoves({ row: r, col: c }, false);
+                    if (moves.some(m => m.row === row && m.col === col)) return true;
+                }
+            }
+            return false;
+        }
+        // 仮想的に動かして自玉が取られるか
+        function wouldBeInCheck(from, to, color) {
+            const tmp = deepCopyBoard(board);
+            const piece = tmp[from.row][from.col];
+            tmp[to.row][to.col] = piece;
+            tmp[from.row][from.col] = null;
+            let kingPos = null;
+            for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+                if (tmp[r][c] && tmp[r][c][0] === color && tmp[r][c][1] === 'K') kingPos = { row: r, col: c };
+            }
+            if (!kingPos) return true;
+            // アンパッサンで取られる場合
+            if (piece[1] === 'P' && enPassant && to.row === enPassant.row && to.col === enPassant.col) {
+                tmp[from.row][to.col] = null;
+            }
+            // キャスリング
+            if (piece[1] === 'K' && Math.abs(to.col - from.col) === 2) {
+                if (to.col === 6) { tmp[from.row][5] = tmp[from.row][7]; tmp[from.row][7] = null; }
+                if (to.col === 2) { tmp[from.row][3] = tmp[from.row][0]; tmp[from.row][0] = null; }
+            }
+            // 利き判定
+            for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+                const p = tmp[r][c];
+                if (p && p[0] !== color) {
+                    const moves = getRawMoves({ row: r, col: c }, false, tmp);
+                    if (moves.some(m => m.row === kingPos.row && m.col === kingPos.col)) return true;
+                }
+            }
+            return false;
+        }
+        // 利き判定用（自分のキングが取られる手も含む）
+        function getRawMoves(from, forPawnAttack, customBoard) {
+            const b = customBoard || board;
+            const piece = b[from.row][from.col];
+            if (!piece) return [];
+            const color = piece[0];
+            const type = piece[1];
+            const res = [];
+            const forward = color === 'w' ? -1 : 1;
+            if (type === 'P') {
+                const nr = from.row + forward;
+                if (!forPawnAttack && nr >= 0 && nr < 8 && !b[nr][from.col]) {
+                    res.push({ row: nr, col: from.col });
+                }
+                if (!forPawnAttack && ((color === 'w' && from.row === 6) || (color === 'b' && from.row === 1))) {
+                    if (!b[from.row + forward][from.col] && !b[from.row + 2 * forward][from.col]) {
+                        res.push({ row: from.row + 2 * forward, col: from.col });
+                    }
+                }
+                for (const dc of [-1, 1]) {
+                    const nc = from.col + dc;
+                    if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && b[nr][nc] && b[nr][nc][0] !== color) {
+                        res.push({ row: nr, col: nc });
+                    }
+                    // アンパッサン
+                    if (enPassant && Math.abs(enPassant.col - from.col) === 1 && enPassant.row === from.row + forward) {
+                        res.push({ row: enPassant.row, col: enPassant.col });
+                    }
+                }
+            } else if (type === 'N') {
+                for (const [dr, dc] of [[-2, -1], [-2, 1], [-1, -2], [-1, 2], [1, -2], [1, 2], [2, -1], [2, 1]]) {
+                    const nr = from.row + dr;
+                    const nc = from.col + dc;
+                    if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && (!b[nr][nc] || b[nr][nc][0] !== color)) {
+                        res.push({ row: nr, col: nc });
+                    }
+                }
+            } else if (type === 'B') {
+                for (const [dr, dc] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+                    for (let i = 1; i < 8; i++) {
+                        const nr = from.row + dr * i;
+                        const nc = from.col + dc * i;
+                        if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) break;
+                        if (!b[nr][nc]) {
+                            res.push({ row: nr, col: nc });
+                        } else {
+                            if (b[nr][nc][0] !== color) res.push({ row: nr, col: nc });
+                            break;
+                        }
+                    }
+                }
+            } else if (type === 'R') {
+                for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                    for (let i = 1; i < 8; i++) {
+                        const nr = from.row + dr * i;
+                        const nc = from.col + dc * i;
+                        if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) break;
+                        if (!b[nr][nc]) {
+                            res.push({ row: nr, col: nc });
+                        } else {
+                            if (b[nr][nc][0] !== color) res.push({ row: nr, col: nc });
+                            break;
+                        }
+                    }
+                }
+            } else if (type === 'Q') {
+                for (const [dr, dc] of [[1, 1], [1, -1], [-1, 1], [-1, -1], [1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                    for (let i = 1; i < 8; i++) {
+                        const nr = from.row + dr * i;
+                        const nc = from.col + dc * i;
+                        if (nr < 0 || nr >= 8 || nc < 0 || nc >= 8) break;
+                        if (!b[nr][nc]) {
+                            res.push({ row: nr, col: nc });
+                        } else {
+                            if (b[nr][nc][0] !== color) res.push({ row: nr, col: nc });
+                            break;
+                        }
+                    }
+                }
+            } else if (type === 'K') {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        if (dr === 0 && dc === 0) continue;
+                        const nr = from.row + dr;
+                        const nc = from.col + dc;
+                        if (nr >= 0 && nr < 8 && nc >= 0 && nc < 8 && (!b[nr][nc] || b[nr][nc][0] !== color)) {
+                            res.push({ row: nr, col: nc });
+                        }
+                    }
+                }
+            }
+            return res;
+        }
+        // チェック・チェックメイト判定
+        function checkStatus() {
+            let opp = turn;
+            let my = (turn === 'w') ? 'b' : 'w';
+            let kingPos = null;
+            for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+                if (board[r][c] && board[r][c][0] === opp && board[r][c][1] === 'K') kingPos = { row: r, col: c };
+            }
+            let inCheck = false;
+            for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+                if (board[r][c] && board[r][c][0] === my) {
+                    const moves = getRawMoves({ row: r, col: c }, false);
+                    if (moves.some(m => m.row === kingPos.row && m.col === kingPos.col)) inCheck = true;
+                }
+            }
+            // チェックメイト判定
+            let canEscape = false;
+            outer: for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+                if (board[r][c] && board[r][c][0] === opp) {
+                    const moves = getMoveOptions({ row: r, col: c });
+                    if (moves.length > 0) { canEscape = true; break outer; }
+                }
+            }
+            if (inCheck && !canEscape) {
+                gameOver = true;
+                document.getElementById('turn-info').textContent = (opp === 'w' ? 'White' : 'Black') + ' is checkmated! ' + (my === 'w' ? 'White' : 'Black') + ' wins! (Checkmate)';
+            } else if (inCheck) {
+                document.getElementById('turn-info').textContent = (opp === 'w' ? 'White' : 'Black') + ' is in check!';
+            } else if (!canEscape) {
+                gameOver = true;
+                document.getElementById('turn-info').textContent = 'Stalemate! Draw.';
+            } else {
+                document.getElementById('turn-info').textContent = (turn === 'w' ? "White's turn" : "Black's turn");
+            }
+        }
+        document.getElementById('reset-btn').addEventListener('click', resetBoard);
+        document.getElementById('resign-btn').addEventListener('click', () => {
+            if (gameOver) return;
+            gameOver = true;
+            document.getElementById('turn-info').textContent = (turn === 'w' ? 'White' : 'Black') + ' resigns. ' + (turn === 'w' ? 'Black' : 'White') + ' wins! (Game Over)';
+        });
+        resetBoard();
+    </script>
+</body>
+
+</html>

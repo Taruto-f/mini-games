@@ -218,26 +218,12 @@
 
 <body>
     <h1>オセロゲーム</h1>
-    <!-- オンライン対戦UI -->
-    <div id="online-ui" style="margin-bottom: 18px; display: flex; flex-direction: column; align-items: center;">
-        <div style="margin-bottom: 6px;">
-            <label><input type="radio" name="mode" value="offline" checked> オフライン</label>
-            <label style="margin-left: 12px;"><input type="radio" name="mode" value="online"> オンライン</label>
-        </div>
-        <div id="online-controls" style="display: none; align-items: center; gap: 8px;">
-            <input id="room-id-input" type="text" placeholder="ルームID" maxlength="12" style="width: 100px;">
-            <button id="create-room-btn">ルーム作成</button>
-            <button id="join-room-btn">参加</button>
-            <span id="online-status" style="margin-left: 10px; color: #007bff;"></span>
-        </div>
-    </div>
     <div id="game-info">
         <span id="current-player">黒の番</span>
         <div>黒: <span id="score-black">2</span></div>
         <div>白: <span id="score-white">2</span></div>
     </div>
-    <div id="board">
-    </div>
+    <div id="board"></div>
     <div id="message-area"></div>
     <div>
         <button id="reset-button">リセット</button>
@@ -253,164 +239,41 @@
         const resetButton = document.getElementById('reset-button');
         const passButton = document.getElementById('pass-button');
 
-        let board = []; // 8x8の配列で盤面の状態を管理 (0:空, 1:黒, 2:白)
+        let board = [];
         const EMPTY = 0;
         const BLACK = 1;
         const WHITE = 2;
-
-        let currentPlayer = BLACK; // 1:黒, 2:白
+        let currentPlayer = BLACK;
         let gameOver = false;
-
         const directions = [
-            [-1, -1], [-1, 0], [-1, 1], // 上、左上、右上
-            [0, -1], [0, 1], // 左、右
-            [1, -1], [1, 0], [1, 1] // 下、左下、右下
+            [-1, -1], [-1, 0], [-1, 1],
+            [0, -1], [0, 1],
+            [1, -1], [1, 0], [1, 1]
         ];
 
-        // オンライン対戦用変数
-        let socket = null;
-        let isOnline = false;
-        let roomId = '';
-        let playerIndex = null; // 0:黒, 1:白
-        let isMyTurn = true;
-        let onlineGameActive = false;
-
-        // UI要素取得
-        const modeRadios = document.getElementsByName('mode');
-        const onlineControls = document.getElementById('online-controls');
-        const roomIdInput = document.getElementById('room-id-input');
-        const createRoomBtn = document.getElementById('create-room-btn');
-        const joinRoomBtn = document.getElementById('join-room-btn');
-        const onlineStatus = document.getElementById('online-status');
-
-        // モード切替
-        modeRadios.forEach(radio => {
-            radio.addEventListener('change', () => {
-                if (radio.value === 'online') {
-                    isOnline = true;
-                    onlineControls.style.display = 'flex';
-                    resetOnlineVars();
-                    initializeGame();
-                } else {
-                    isOnline = false;
-                    onlineControls.style.display = 'none';
-                    if (socket) socket.disconnect();
-                    resetOnlineVars();
-                    initializeGame();
-                }
-            });
-        });
-
-        function resetOnlineVars() {
-            roomId = '';
-            playerIndex = null;
-            isMyTurn = true;
-            onlineGameActive = false;
-            onlineStatus.textContent = '';
-        }
-
-        // ルーム作成
-        createRoomBtn.addEventListener('click', () => {
-            if (!roomIdInput.value) {
-                onlineStatus.textContent = 'ルームIDを入力してください';
-                return;
-            }
-            connectSocket(roomIdInput.value, true);
-        });
-        // ルーム参加
-        joinRoomBtn.addEventListener('click', () => {
-            if (!roomIdInput.value) {
-                onlineStatus.textContent = 'ルームIDを入力してください';
-                return;
-            }
-            connectSocket(roomIdInput.value, false);
-        });
-
-        function connectSocket(id, isCreate) {
-            if (socket) socket.disconnect();
-            socket = io('http://localhost:3000');
-            roomId = id;
-            onlineStatus.textContent = 'サーバー接続中...';
-            socket.emit('joinRoom', { roomId, gameType: 'othello' });
-
-            socket.on('joinedRoom', ({ roomId: joinedId, playerIndex: idx }) => {
-                playerIndex = idx;
-                isMyTurn = (playerIndex === 0); // 0:黒, 1:白
-                if (isCreate) {
-                    onlineStatus.textContent = 'ルーム作成しました';
-                    setTimeout(() => {
-                        onlineStatus.textContent = `ルーム「${joinedId}」に${playerIndex === 0 ? '黒(先手)' : '白(後手)'}で参加`;
-                    }, 1200);
-                } else {
-                    onlineStatus.textContent = `ルーム「${joinedId}」に${playerIndex === 0 ? '黒(先手)' : '白(後手)'}で参加`;
-                }
-            });
-            socket.on('playerCount', (count) => {
-                if (count < 2) {
-                    onlineStatus.textContent = '対戦相手待ち...';
-                    onlineGameActive = false;
-                }
-            });
-            socket.on('startGame', () => {
-                onlineGameActive = true;
-                isMyTurn = (playerIndex === 0);
-                initializeGame();
-                onlineStatus.textContent = '対戦開始！';
-            });
-            socket.on('updateState', (state) => {
-                syncFromOnlineState(state);
-            });
-            socket.on('roomFull', () => {
-                onlineStatus.textContent = 'このルームは満員です';
-                socket.disconnect();
-            });
-            socket.on('disconnect', () => {
-                onlineStatus.textContent = 'サーバー切断';
-                onlineGameActive = false;
-            });
-        }
-
-        // セルクリック処理の上書き
-        function handleCellClickOnline(e) {
-            if (!onlineGameActive || !isMyTurn || gameOver) return;
-            handleCellClick(e);
-            sendOnlineState();
-            isMyTurn = false;
-        }
-
-        // --- ゲーム初期化 ---
         function initializeGame() {
             board = Array(8).fill(0).map(() => Array(8).fill(EMPTY));
-
-            // 初期配置
             board[3][3] = WHITE;
             board[3][4] = BLACK;
             board[4][3] = BLACK;
             board[4][4] = WHITE;
-
             currentPlayer = BLACK;
             gameOver = false;
             messageArea.textContent = '';
-            passButton.disabled = true; // パスボタンを無効化
+            passButton.disabled = true;
             renderBoard();
             updateGameInfo();
         }
 
-        // --- 盤面描画 ---
         function renderBoard() {
-            boardElement.innerHTML = ''; // 既存のセルをクリア
+            boardElement.innerHTML = '';
             board.forEach((row, r) => {
                 row.forEach((cellValue, c) => {
                     const cell = document.createElement('div');
                     cell.classList.add('cell');
                     cell.dataset.row = r;
                     cell.dataset.col = c;
-                    if (isOnline) {
-                        cell.addEventListener('click', handleCellClickOnline);
-                    } else {
-                        cell.addEventListener('click', handleCellClick);
-                    }
-
+                    cell.addEventListener('click', handleCellClick);
                     if (cellValue === BLACK) {
                         const piece = document.createElement('div');
                         piece.classList.add('piece');
@@ -426,7 +289,6 @@
             highlightValidMoves();
         }
 
-        // --- 駒のカウントと表示更新 ---
         function updateGameInfo() {
             let blackCount = 0;
             let whiteCount = 0;
@@ -438,21 +300,17 @@
             });
             scoreBlackDisplay.textContent = blackCount;
             scoreWhiteDisplay.textContent = whiteCount;
-
             if (!gameOver) {
                 currentPlayerDisplay.textContent = `${currentPlayer === BLACK ? '黒' : '白'}の番`;
                 currentPlayerDisplay.style.color = currentPlayer === BLACK ? '#000' : '#007bff';
             }
         }
 
-        // --- 有効な手をハイライト表示 ---
         function highlightValidMoves() {
             document.querySelectorAll('.cell.valid-move').forEach(cell => {
                 cell.classList.remove('valid-move');
             });
-
             if (gameOver) return;
-
             for (let r = 0; r < 8; r++) {
                 for (let c = 0; c < 8; c++) {
                     if (isValidMove(r, c, currentPlayer)) {
@@ -465,26 +323,19 @@
             }
         }
 
-        // --- 有効な手かどうかの判定 ---
         function isValidMove(r, c, player) {
-            if (board[r][c] !== EMPTY) return false; // すでに駒がある
-
+            if (board[r][c] !== EMPTY) return false;
             const opponent = player === BLACK ? WHITE : BLACK;
             let canFlip = false;
-
             for (const [dr, dc] of directions) {
                 let currentR = r + dr;
                 let currentC = c + dc;
-                let foundOpponent = false; // 相手の駒を見つけたか
-
-                // 盤面の範囲内で、相手の駒が続く限り進む
+                let foundOpponent = false;
                 while (currentR >= 0 && currentR < 8 && currentC >= 0 && currentC < 8 && board[currentR][currentC] === opponent) {
                     currentR += dr;
                     currentC += dc;
                     foundOpponent = true;
                 }
-
-                // 相手の駒が見つかっていて、さらにその先に自分の駒がある場合
                 if (foundOpponent && currentR >= 0 && currentR < 8 && currentC >= 0 && currentC < 8 && board[currentR][currentC] === player) {
                     canFlip = true;
                     break;
@@ -493,17 +344,13 @@
             return canFlip;
         }
 
-        // --- 駒を反転させるロジック ---
         function flipPieces(r, c, player) {
             const opponent = player === BLACK ? WHITE : BLACK;
             let flipped = false;
-
             for (const [dr, dc] of directions) {
                 let piecesToFlip = [];
                 let currentR = r + dr;
                 let currentC = c + dc;
-
-                // まず隣が相手の駒かどうか
                 while (
                     currentR >= 0 && currentR < 8 &&
                     currentC >= 0 && currentC < 8 &&
@@ -513,8 +360,6 @@
                     currentR += dr;
                     currentC += dc;
                 }
-
-                // その先に自分の駒があれば反転
                 if (
                     piecesToFlip.length > 0 &&
                     currentR >= 0 && currentR < 8 &&
@@ -523,12 +368,10 @@
                 ) {
                     for (const [fr, fc] of piecesToFlip) {
                         board[fr][fc] = player;
-                        // アニメーション用クラス付与
                         const cellIndex = fr * 8 + fc;
                         const cell = boardElement.children[cellIndex];
                         if (cell && cell.firstChild) {
                             cell.firstChild.classList.add('flipped');
-                            // アニメーション後にクラスを外す
                             setTimeout(() => {
                                 cell.firstChild.classList.remove('flipped');
                             }, 300);
@@ -540,38 +383,66 @@
             return flipped;
         }
 
-        // オンライン状態を送信
-        function sendOnlineState() {
-            if (socket && roomId) {
-                socket.emit('syncState', {
-                    roomId,
-                    state: {
-                        board,
-                        currentPlayer,
-                        gameOver,
-                    }
-                });
+        function hasValidMove(player) {
+            for (let r = 0; r < 8; r++) {
+                for (let c = 0; c < 8; c++) {
+                    if (isValidMove(r, c, player)) return true;
+                }
             }
+            return false;
         }
-        // サーバーから受信した状態で同期
-        function syncFromOnlineState(state) {
-            board = state.board;
-            currentPlayer = state.currentPlayer;
-            gameOver = state.gameOver;
+
+        function handleCellClick(e) {
+            if (gameOver) return;
+            const cell = e.currentTarget;
+            const r = parseInt(cell.dataset.row);
+            const c = parseInt(cell.dataset.col);
+            if (!isValidMove(r, c, currentPlayer)) return;
+            board[r][c] = currentPlayer;
+            flipPieces(r, c, currentPlayer);
+            currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
             renderBoard();
             updateGameInfo();
-            // ターン管理
-            isMyTurn = (playerIndex === 0 && currentPlayer === BLACK) || (playerIndex === 1 && currentPlayer === WHITE);
-        }
-        // リセットボタンも同期
-        resetButton.addEventListener('click', () => {
-            if (isOnline && onlineGameActive) {
-                initializeGame();
-                sendOnlineState();
+            if (!hasValidMove(currentPlayer)) {
+                if (!hasValidMove(currentPlayer === BLACK ? WHITE : BLACK)) {
+                    gameOver = true;
+                    messageArea.textContent = 'ゲーム終了！';
+                    passButton.disabled = true;
+                } else {
+                    messageArea.textContent = `${currentPlayer === BLACK ? '黒' : '白'}は打てる場所がありません。パスします。`;
+                    passButton.disabled = false;
+                }
             } else {
-                initializeGame();
+                messageArea.textContent = '';
+                passButton.disabled = true;
+            }
+        }
+
+        passButton.addEventListener('click', () => {
+            if (gameOver) return;
+            currentPlayer = currentPlayer === BLACK ? WHITE : BLACK;
+            renderBoard();
+            updateGameInfo();
+            if (!hasValidMove(currentPlayer)) {
+                if (!hasValidMove(currentPlayer === BLACK ? WHITE : BLACK)) {
+                    gameOver = true;
+                    messageArea.textContent = 'ゲーム終了！';
+                    passButton.disabled = true;
+                } else {
+                    messageArea.textContent = `${currentPlayer === BLACK ? '黒' : '白'}は打てる場所がありません。パスします。`;
+                    passButton.disabled = false;
+                }
+            } else {
+                messageArea.textContent = '';
+                passButton.disabled = true;
             }
         });
+
+        resetButton.addEventListener('click', () => {
+            initializeGame();
+        });
+
+        initializeGame();
     </script>
 </body>
 

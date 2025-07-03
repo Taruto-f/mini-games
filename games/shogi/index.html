@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>将棋</title>
+    <style>
+        body {
+            font-family: 'Yu Mincho', 'Hiragino Mincho Pro', 'MS Mincho', serif;
+            background: #f8f4e6;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        h1 {
+            margin-bottom: 18px;
+            letter-spacing: 0.2em;
+        }
+
+        .shogi-board {
+            display: grid;
+            grid-template-columns: repeat(9, 48px);
+            grid-template-rows: repeat(9, 48px);
+            gap: 0;
+            background: #e0b96a;
+            border: 4px solid #b48a3c;
+            border-radius: 10px;
+            box-shadow: 0 4px 16px #b48a3c44;
+            margin-bottom: 18px;
+        }
+
+        .cell {
+            width: 48px;
+            height: 48px;
+            border: 1px solid #b48a3c;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3em;
+            background: #f6e2a6;
+            cursor: pointer;
+            position: relative;
+            user-select: none;
+        }
+
+        .cell.selected {
+            background: #ffe066;
+            box-shadow: 0 0 0 2px #ffb300 inset;
+        }
+
+        .cell.move-option {
+            background: #b2e672;
+        }
+
+        .piece {
+            font-family: 'Yu Mincho', 'Hiragino Mincho Pro', 'MS Mincho', serif;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #222;
+            writing-mode: vertical-rl;
+            text-align: center;
+            width: 32px;
+            height: 32px;
+            border-radius: 6px;
+            background: #fffbe6;
+            border: 1px solid #b48a3c;
+            box-shadow: 0 2px 6px #b48a3c33;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .piece.sente {
+            color: #222;
+        }
+
+        .piece.gote {
+            color: #b12c2c;
+            transform: rotate(180deg);
+        }
+
+        #turn-info {
+            font-size: 1.1em;
+            margin-bottom: 10px;
+        }
+
+        #reset-btn {
+            padding: 8px 24px;
+            font-size: 1em;
+            border-radius: 8px;
+            border: none;
+            background: #b48a3c;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        #reset-btn:hover {
+            background: #8c6b2e;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>将棋</h1>
+    <div id="turn-info">先手の番</div>
+    <div id="sente-captures" style="margin-bottom:8px;"></div>
+    <div class="shogi-board" id="board"></div>
+    <div id="gote-captures" style="margin-top:8px;"></div>
+    <button id="reset-btn">リセット</button>
+    <button id="resign-btn">投了</button>
+    <script>
+        // 駒の種類と表示
+        const PIECES = {
+            FU: '歩', KY: '香', KE: '桂', GI: '銀', KI: '金', KA: '角', HI: '飛', OU: '王',
+            TO: 'と', NY: '成香', NK: '成桂', NG: '成銀', UM: '馬', RY: '竜'
+        };
+        // 成駒の変換
+        const PROMOTE_MAP = {
+            FU: 'TO', KY: 'NY', KE: 'NK', GI: 'NG', KA: 'UM', HI: 'RY'
+        };
+        const UNPROMOTE_MAP = {
+            TO: 'FU', NY: 'KY', NK: 'KE', NG: 'GI', UM: 'KA', RY: 'HI'
+        };
+        // 成駒の動き（金・馬・竜）
+        const PROMOTED_MOVES = {
+            TO: 'KI', NY: 'KI', NK: 'KI', NG: 'KI',
+            UM: 'KA+KING', RY: 'HI+KING'
+        };
+        // 初期配置
+        const INITIAL_BOARD = [
+            [
+                { type: 'KY', owner: 'gote' }, { type: 'KE', owner: 'gote' }, { type: 'GI', owner: 'gote' }, { type: 'KI', owner: 'gote' }, { type: 'OU', owner: 'gote' }, { type: 'KI', owner: 'gote' }, { type: 'GI', owner: 'gote' }, { type: 'KE', owner: 'gote' }, { type: 'KY', owner: 'gote' }
+            ],
+            [null, { type: 'HI', owner: 'gote' }, null, null, null, null, null, { type: 'KA', owner: 'gote' }, null],
+            [
+                { type: 'FU', owner: 'gote' }, { type: 'FU', owner: 'gote' }, { type: 'FU', owner: 'gote' }, { type: 'FU', owner: 'gote' }, { type: 'FU', owner: 'gote' }, { type: 'FU', owner: 'gote' }, { type: 'FU', owner: 'gote' }, { type: 'FU', owner: 'gote' }, { type: 'FU', owner: 'gote' }
+            ],
+            ...Array(3).fill(Array(9).fill(null)),
+            [
+                { type: 'FU', owner: 'sente' }, { type: 'FU', owner: 'sente' }, { type: 'FU', owner: 'sente' }, { type: 'FU', owner: 'sente' }, { type: 'FU', owner: 'sente' }, { type: 'FU', owner: 'sente' }, { type: 'FU', owner: 'sente' }, { type: 'FU', owner: 'sente' }, { type: 'FU', owner: 'sente' }
+            ],
+            [null, { type: 'KA', owner: 'sente' }, null, null, null, null, null, { type: 'HI', owner: 'sente' }, null],
+            [
+                { type: 'KY', owner: 'sente' }, { type: 'KE', owner: 'sente' }, { type: 'GI', owner: 'sente' }, { type: 'KI', owner: 'sente' }, { type: 'OU', owner: 'sente' }, { type: 'KI', owner: 'sente' }, { type: 'GI', owner: 'sente' }, { type: 'KE', owner: 'sente' }, { type: 'KY', owner: 'sente' }
+            ]
+        ];
+        let board = [];
+        let turn = 'sente';
+        let selected = null;
+        let moveOptions = [];
+        let dropMode = null; // {type: 'FU', ...}
+        let captures = { sente: {}, gote: {} };
+        let gameOver = false;
+        function deepCopyBoard(src) {
+            return src.map(row => row.map(cell => cell ? { ...cell } : null));
+        }
+        function resetBoard() {
+            board = deepCopyBoard(INITIAL_BOARD);
+            turn = 'sente';
+            selected = null;
+            moveOptions = [];
+            dropMode = null;
+            captures = { sente: {}, gote: {} };
+            gameOver = false;
+            render();
+            document.getElementById('turn-info').textContent = '先手の番';
+        }
+        function render() {
+            // 持ち駒表示
+            for (const side of ['sente', 'gote']) {
+                const capDiv = document.getElementById(side + '-captures');
+                capDiv.innerHTML = '';
+                Object.keys(PIECES).forEach(type => {
+                    if (captures[side][type]) {
+                        const btn = document.createElement('button');
+                        btn.textContent = PIECES[type] + '×' + captures[side][type];
+                        btn.className = 'piece ' + side;
+                        btn.onclick = () => {
+                            dropMode = { type, owner: side };
+                            selected = null;
+                            moveOptions = getDropOptions(type, side);
+                            render();
+                        };
+                        capDiv.appendChild(btn);
+                    }
+                });
+            }
+            // 盤面
+            const boardDiv = document.getElementById('board');
+            boardDiv.innerHTML = '';
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    if (selected && selected.row === r && selected.col === c) {
+                        cell.classList.add('selected');
+                    }
+                    if (moveOptions.some(opt => opt.row === r && opt.col === c)) {
+                        cell.classList.add('move-option');
+                    }
+                    const piece = board[r][c];
+                    if (piece) {
+                        const pieceDiv = document.createElement('div');
+                        pieceDiv.className = 'piece ' + piece.owner;
+                        pieceDiv.textContent = PIECES[piece.type];
+                        cell.appendChild(pieceDiv);
+                    }
+                    cell.addEventListener('click', handleCellClick);
+                    boardDiv.appendChild(cell);
+                }
+            }
+            // 勝敗表示
+            if (gameOver) {
+                document.getElementById('turn-info').textContent += '（対局終了）';
+            }
+        }
+        function handleCellClick(e) {
+            if (gameOver) return;
+            const r = parseInt(e.currentTarget.dataset.row);
+            const c = parseInt(e.currentTarget.dataset.col);
+            const piece = board[r][c];
+            // 持ち駒打ち
+            if (dropMode) {
+                if (moveOptions.some(opt => opt.row === r && opt.col === c)) {
+                    board[r][c] = { type: dropMode.type, owner: turn };
+                    captures[turn][dropMode.type]--;
+                    if (captures[turn][dropMode.type] === 0) delete captures[turn][dropMode.type];
+                    dropMode = null;
+                    moveOptions = [];
+                    turn = (turn === 'sente') ? 'gote' : 'sente';
+                    document.getElementById('turn-info').textContent = (turn === 'sente' ? '先手' : '後手') + 'の番';
+                    render();
+                } else {
+                    dropMode = null;
+                    moveOptions = [];
+                    render();
+                }
+                return;
+            }
+            if (selected) {
+                // 移動先を選択
+                if (moveOptions.some(opt => opt.row === r && opt.col === c)) {
+                    // 成り判定
+                    let movePiece = board[selected.row][selected.col];
+                    let promote = false;
+                    if (canPromote(movePiece, selected, { row: r, col: c })) {
+                        promote = confirm('成りますか？');
+                    }
+                    // 取った駒を持ち駒に
+                    if (board[r][c]) {
+                        let capturedType = board[r][c].type;
+                        if (UNPROMOTE_MAP[capturedType]) capturedType = UNPROMOTE_MAP[capturedType];
+                        captures[turn][capturedType] = (captures[turn][capturedType] || 0) + 1;
+                    }
+                    board[r][c] = { ...movePiece };
+                    if (promote && PROMOTE_MAP[movePiece.type]) {
+                        board[r][c].type = PROMOTE_MAP[movePiece.type];
+                    }
+                    board[selected.row][selected.col] = null;
+                    turn = (turn === 'sente') ? 'gote' : 'sente';
+                    selected = null;
+                    moveOptions = [];
+                    document.getElementById('turn-info').textContent = (turn === 'sente' ? '先手' : '後手') + 'の番';
+                    render();
+                    return;
+                } else if (piece && piece.owner === turn) {
+                    selected = { row: r, col: c };
+                    moveOptions = getMoveOptions(selected);
+                    render();
+                    return;
+                } else {
+                    selected = null;
+                    moveOptions = [];
+                    render();
+                    return;
+                }
+            } else {
+                if (piece && piece.owner === turn) {
+                    selected = { row: r, col: c };
+                    moveOptions = getMoveOptions(selected);
+                    render();
+                }
+            }
+            // 手番交代後の詰み・王手判定
+            if (!gameOver) checkCheckmate();
+        }
+        // 成れるかどうか
+        function canPromote(piece, from, to) {
+            if (!PROMOTE_MAP[piece.type]) return false;
+            const zone = piece.owner === 'sente' ? 2 : 6;
+            if ((piece.owner === 'sente' && (from.row <= zone || to.row <= zone)) ||
+                (piece.owner === 'gote' && (from.row >= zone || to.row >= zone))) {
+                return true;
+            }
+            return false;
+        }
+        // 持ち駒打ち可能マス
+        function getDropOptions(type, owner) {
+            const res = [];
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    if (!board[r][c]) {
+                        // 二歩禁止
+                        if (type === 'FU') {
+                            let hasFu = false;
+                            for (let rr = 0; rr < 9; rr++) {
+                                if (board[rr][c] && board[rr][c].type === 'FU' && board[rr][c].owner === owner) hasFu = true;
+                            }
+                            if (hasFu) continue;
+                            // 打てない段
+                            if ((owner === 'sente' && r === 0) || (owner === 'gote' && r === 8)) continue;
+                        }
+                        // 桂・香の打てない段
+                        if (type === 'KE' && ((owner === 'sente' && r <= 1) || (owner === 'gote' && r >= 7))) continue;
+                        if (type === 'KY' && ((owner === 'sente' && r === 0) || (owner === 'gote' && r === 8))) continue;
+                        res.push({ row: r, col: c });
+                    }
+                }
+            }
+            return res;
+        }
+        // 駒ごとの移動可能マスを返す（成駒対応）
+        function getMoveOptions(from) {
+            const piece = board[from.row][from.col];
+            if (!piece) return [];
+            const dirs = [];
+            const res = [];
+            const owner = piece.owner;
+            const forward = owner === 'sente' ? -1 : 1;
+            let type = piece.type;
+            // 成駒の動き
+            if (PROMOTED_MOVES[type] === 'KI') type = 'KI';
+            if (PROMOTED_MOVES[type] === 'KA+KING') {
+                // 馬
+                for (const [dr, dc] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+                    for (let i = 1; i < 9; i++) {
+                        const nr = from.row + dr * i;
+                        const nc = from.col + dc * i;
+                        if (nr < 0 || nr >= 9 || nc < 0 || nc >= 9) break;
+                        if (!board[nr][nc]) {
+                            res.push({ row: nr, col: nc });
+                        } else {
+                            if (board[nr][nc].owner !== owner) res.push({ row: nr, col: nc });
+                            break;
+                        }
+                    }
+                }
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        if (dr === 0 && dc === 0) continue;
+                        if (Math.abs(dr) === Math.abs(dc)) continue;
+                        const nr = from.row + dr;
+                        const nc = from.col + dc;
+                        if (nr >= 0 && nr < 9 && nc >= 0 && nc < 9 && (!board[nr][nc] || board[nr][nc].owner !== owner)) {
+                            res.push({ row: nr, col: nc });
+                        }
+                    }
+                }
+                return res;
+            }
+            if (PROMOTED_MOVES[type] === 'HI+KING') {
+                // 竜
+                for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                    for (let i = 1; i < 9; i++) {
+                        const nr = from.row + dr * i;
+                        const nc = from.col + dc * i;
+                        if (nr < 0 || nr >= 9 || nc < 0 || nc >= 9) break;
+                        if (!board[nr][nc]) {
+                            res.push({ row: nr, col: nc });
+                        } else {
+                            if (board[nr][nc].owner !== owner) res.push({ row: nr, col: nc });
+                            break;
+                        }
+                    }
+                }
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        if (dr === 0 && dc === 0) continue;
+                        if (dr === 0 || dc === 0) continue;
+                        const nr = from.row + dr;
+                        const nc = from.col + dc;
+                        if (nr >= 0 && nr < 9 && nc >= 0 && nc < 9 && (!board[nr][nc] || board[nr][nc].owner !== owner)) {
+                            res.push({ row: nr, col: nc });
+                        }
+                    }
+                }
+                return res;
+            }
+            // 通常駒
+            if (type === 'FU') {
+                const nr = from.row + forward;
+                if (nr >= 0 && nr < 9 && (!board[nr][from.col] || board[nr][from.col].owner !== owner)) {
+                    res.push({ row: nr, col: from.col });
+                }
+            } else if (type === 'OU') {
+                for (let dr = -1; dr <= 1; dr++) {
+                    for (let dc = -1; dc <= 1; dc++) {
+                        if (dr === 0 && dc === 0) continue;
+                        const nr = from.row + dr;
+                        const nc = from.col + dc;
+                        if (nr >= 0 && nr < 9 && nc >= 0 && nc < 9 && (!board[nr][nc] || board[nr][nc].owner !== owner)) {
+                            res.push({ row: nr, col: nc });
+                        }
+                    }
+                }
+            } else if (type === 'KI') {
+                const goldMoves = [
+                    [forward, 0], [forward, -1], [forward, 1], [0, -1], [0, 1], [-forward, 0]
+                ];
+                for (const [dr, dc] of goldMoves) {
+                    const nr = from.row + dr;
+                    const nc = from.col + dc;
+                    if (nr >= 0 && nr < 9 && nc >= 0 && nc < 9 && (!board[nr][nc] || board[nr][nc].owner !== owner)) {
+                        res.push({ row: nr, col: nc });
+                    }
+                }
+            } else if (type === 'GI') {
+                const silverMoves = [
+                    [forward, 0], [forward, -1], [forward, 1], [-forward, -1], [-forward, 1]
+                ];
+                for (const [dr, dc] of silverMoves) {
+                    const nr = from.row + dr;
+                    const nc = from.col + dc;
+                    if (nr >= 0 && nr < 9 && nc >= 0 && nc < 9 && (!board[nr][nc] || board[nr][nc].owner !== owner)) {
+                        res.push({ row: nr, col: nc });
+                    }
+                }
+            } else if (type === 'KE') {
+                const knightMoves = [
+                    [2 * forward, -1], [2 * forward, 1]
+                ];
+                for (const [dr, dc] of knightMoves) {
+                    const nr = from.row + dr;
+                    const nc = from.col + dc;
+                    if (nr >= 0 && nr < 9 && nc >= 0 && nc < 9 && (!board[nr][nc] || board[nr][nc].owner !== owner)) {
+                        res.push({ row: nr, col: nc });
+                    }
+                }
+            } else if (type === 'KY') {
+                for (let i = 1; i < 9; i++) {
+                    const nr = from.row + i * forward;
+                    if (nr < 0 || nr >= 9) break;
+                    if (!board[nr][from.col]) {
+                        res.push({ row: nr, col: from.col });
+                    } else {
+                        if (board[nr][from.col].owner !== owner) res.push({ row: nr, col: from.col });
+                        break;
+                    }
+                }
+            } else if (type === 'KA') {
+                for (const [dr, dc] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {
+                    for (let i = 1; i < 9; i++) {
+                        const nr = from.row + dr * i;
+                        const nc = from.col + dc * i;
+                        if (nr < 0 || nr >= 9 || nc < 0 || nc >= 9) break;
+                        if (!board[nr][nc]) {
+                            res.push({ row: nr, col: nc });
+                        } else {
+                            if (board[nr][nc].owner !== owner) res.push({ row: nr, col: nc });
+                            break;
+                        }
+                    }
+                }
+            } else if (type === 'HI') {
+                for (const [dr, dc] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+                    for (let i = 1; i < 9; i++) {
+                        const nr = from.row + dr * i;
+                        const nc = from.col + dc * i;
+                        if (nr < 0 || nr >= 9 || nc < 0 || nc >= 9) break;
+                        if (!board[nr][nc]) {
+                            res.push({ row: nr, col: nc });
+                        } else {
+                            if (board[nr][nc].owner !== owner) res.push({ row: nr, col: nc });
+                            break;
+                        }
+                    }
+                }
+            }
+            return res;
+        }
+        document.getElementById('reset-btn').addEventListener('click', resetBoard);
+        document.getElementById('resign-btn').addEventListener('click', () => {
+            if (gameOver) return;
+            gameOver = true;
+            document.getElementById('turn-info').textContent = (turn === 'sente' ? '先手' : '後手') + 'の投了。' + (turn === 'sente' ? '後手' : '先手') + 'の勝ち！（対局終了）';
+        });
+        resetBoard();
+        function checkCheckmate() {
+            // 1. 自玉の位置を探す
+            let myKing = null;
+            for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
+                const p = board[r][c];
+                if (p && p.type === 'OU' && p.owner === turn) myKing = { row: r, col: c };
+            }
+            if (!myKing) {
+                gameOver = true;
+                document.getElementById('turn-info').textContent = (turn === 'sente' ? '先手' : '後手') + 'の玉がありません。' + (turn === 'sente' ? '後手' : '先手') + 'の勝ち！（対局終了）';
+                return;
+            }
+            // 2. 相手の全ての駒の利きに自玉が含まれるか（王手判定）
+            let inCheck = false;
+            for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
+                const p = board[r][c];
+                if (p && p.owner !== turn) {
+                    const moves = getMoveOptions({ row: r, col: c });
+                    if (moves.some(m => m.row === myKing.row && m.col === myKing.col)) inCheck = true;
+                }
+            }
+            // 3. 王手を受けていて、かつ自分の全ての合法手で王手を回避できない場合は詰み
+            if (inCheck) {
+                // どれか一つでも合法手で王手を回避できれば詰みではない
+                let canEscape = false;
+                outer: for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
+                    const p = board[r][c];
+                    if (p && p.owner === turn) {
+                        const moves = getMoveOptions({ row: r, col: c });
+                        for (const m of moves) {
+                            // 仮想的に動かしてみて、王手が外れるか
+                            const backup = board[m.row][m.col];
+                            const from = board[r][c];
+                            board[m.row][m.col] = { ...from };
+                            board[r][c] = null;
+                            let kingPos = (from.type === 'OU') ? { row: m.row, col: m.col } : myKing;
+                            let stillCheck = false;
+                            for (let rr = 0; rr < 9; rr++) for (let cc = 0; cc < 9; cc++) {
+                                const op = board[rr][cc];
+                                if (op && op.owner !== turn) {
+                                    const opMoves = getMoveOptions({ row: rr, col: cc });
+                                    if (opMoves.some(mm => mm.row === kingPos.row && mm.col === kingPos.col)) stillCheck = true;
+                                }
+                            }
+                            board[r][c] = from;
+                            board[m.row][m.col] = backup;
+                            if (!stillCheck) {
+                                canEscape = true;
+                                break outer;
+                            }
+                        }
+                    }
+                }
+                if (!canEscape) {
+                    gameOver = true;
+                    document.getElementById('turn-info').textContent = (turn === 'sente' ? '先手' : '後手') + 'の玉は詰みです。' + (turn === 'sente' ? '後手' : '先手') + 'の勝ち！（対局終了）';
+                } else {
+                    document.getElementById('turn-info').textContent = (turn === 'sente' ? '先手' : '後手') + 'は王手！';
+                }
+            }
+        }
+    </script>
+</body>
+
+</html>
