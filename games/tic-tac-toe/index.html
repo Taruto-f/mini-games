@@ -275,6 +275,12 @@
         <button id="overlay-reset-button">もう一度プレイ</button>
     </div>
 
+    <div class="container">
+        <div style="margin-bottom: 12px;">
+            <label><input type="checkbox" id="ai-x"> ×（後手）をAIにする</label>
+        </div>
+    </div>
+
     <script>
         const cells = document.querySelectorAll('.cell');
         const statusDisplay = document.getElementById('status');
@@ -327,6 +333,14 @@
         const createRoomBtn = document.getElementById('create-room-btn');
         const joinRoomBtn = document.getElementById('join-room-btn');
         const onlineStatus = document.getElementById('online-status');
+
+        let aiX = false;
+        document.getElementById('ai-x').addEventListener('change', function () {
+            aiX = this.checked;
+            if (aiX && currentPlayer === 'X' && gameActive) {
+                setTimeout(aiMove, 400);
+            }
+        });
 
         // 初期表示とタイマー開始
         handleResetGame();
@@ -472,6 +486,7 @@
             }
             // ターン管理
             isMyTurn = (playerIndex === 0 && currentPlayer === 'O') || (playerIndex === 1 && currentPlayer === 'X');
+            renderBoard();
         }
         // リセットボタンも同期
         resetButton.addEventListener('click', () => {
@@ -661,6 +676,9 @@
             statusDisplay.innerHTML = messages.playerTurn(currentPlayer);
             hideEndGameAnimation();
             startTurnTimer(); // 新しいゲームの開始と同時に最初のターンのタイマーを開始
+            if (aiX && currentPlayer === 'X' && gameActive) {
+                setTimeout(aiMove, 400);
+            }
         }
 
         /**
@@ -668,6 +686,23 @@
         */
         function hideEndGameAnimation() {
             gameEndOverlay.classList.remove('active');
+        }
+
+        function renderBoard() {
+            if (aiX && currentPlayer === 'X' && gameActive) {
+                setTimeout(aiMove, 400);
+            }
+        }
+
+        function aiMove() {
+            // 合法手を全て列挙
+            let moves = [];
+            for (let i = 0; i < 9; i++) {
+                if (gameState[i] === '') moves.push(i);
+            }
+            if (moves.length === 0) return;
+            const idx = moves[Math.floor(Math.random() * moves.length)];
+            handleCellClick({ target: cells[idx] });
         }
     </script>
 </body>

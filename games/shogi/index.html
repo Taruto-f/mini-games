@@ -83,6 +83,34 @@
             transform: rotate(180deg);
         }
 
+        .piece.gyoku {
+            color: #1a237e;
+        }
+
+        .piece.captured-gyoku {
+            animation: gyoku-capture 0.7s cubic-bezier(.5, 1.7, .5, 1);
+            opacity: 0;
+            transform: scale(2);
+            z-index: 100;
+        }
+
+        @keyframes gyoku-capture {
+            0% {
+                opacity: 1;
+                transform: scale(1);
+            }
+
+            60% {
+                opacity: 1;
+                transform: scale(2.2);
+            }
+
+            100% {
+                opacity: 0;
+                transform: scale(2);
+            }
+        }
+
         #turn-info {
             font-size: 1.1em;
             margin-bottom: 10px;
@@ -167,7 +195,7 @@
     <script>
         // 駒の種類と表示
         const PIECES = {
-            FU: '歩', KY: '香', KE: '桂', GI: '銀', KI: '金', KA: '角', HI: '飛', OU: '王',
+            FU: '歩', KY: '香', KE: '桂', GI: '銀', KI: '金', KA: '角', HI: '飛', GYOKU: '玉',
             TO: 'と', NY: '成香', NK: '成桂', NG: '成銀', UM: '馬', RY: '竜'
         };
         // 成駒の変換
@@ -185,7 +213,7 @@
         // 初期配置
         const INITIAL_BOARD = [
             [
-                { type: 'KY', owner: 'gote' }, { type: 'KE', owner: 'gote' }, { type: 'GI', owner: 'gote' }, { type: 'KI', owner: 'gote' }, { type: 'OU', owner: 'gote' }, { type: 'KI', owner: 'gote' }, { type: 'GI', owner: 'gote' }, { type: 'KE', owner: 'gote' }, { type: 'KY', owner: 'gote' }
+                { type: 'KY', owner: 'gote' }, { type: 'KE', owner: 'gote' }, { type: 'GI', owner: 'gote' }, { type: 'KI', owner: 'gote' }, { type: 'GYOKU', owner: 'gote' }, { type: 'KI', owner: 'gote' }, { type: 'GI', owner: 'gote' }, { type: 'KE', owner: 'gote' }, { type: 'KY', owner: 'gote' }
             ],
             [null, { type: 'HI', owner: 'gote' }, null, null, null, null, null, { type: 'KA', owner: 'gote' }, null],
             [
@@ -197,7 +225,7 @@
             ],
             [null, { type: 'KA', owner: 'sente' }, null, null, null, null, null, { type: 'HI', owner: 'sente' }, null],
             [
-                { type: 'KY', owner: 'sente' }, { type: 'KE', owner: 'sente' }, { type: 'GI', owner: 'sente' }, { type: 'KI', owner: 'sente' }, { type: 'OU', owner: 'sente' }, { type: 'KI', owner: 'sente' }, { type: 'GI', owner: 'sente' }, { type: 'KE', owner: 'sente' }, { type: 'KY', owner: 'sente' }
+                { type: 'KY', owner: 'sente' }, { type: 'KE', owner: 'sente' }, { type: 'GI', owner: 'sente' }, { type: 'KI', owner: 'sente' }, { type: 'GYOKU', owner: 'sente' }, { type: 'KI', owner: 'sente' }, { type: 'GI', owner: 'sente' }, { type: 'KE', owner: 'sente' }, { type: 'KY', owner: 'sente' }
             ]
         ];
         let board = [];
@@ -241,7 +269,7 @@
                         const wrap = document.createElement('div');
                         wrap.className = 'capture-piece';
                         const btn = document.createElement('button');
-                        btn.className = 'piece ' + side + (PROMOTE_MAP[type] ? '' : '');
+                        btn.className = 'piece ' + side + (PROMOTE_MAP[type] ? '' : '') + (type === 'GYOKU' ? ' gyoku' : '');
                         btn.textContent = PIECES[type];
                         btn.onclick = () => {
                             dropMode = { type, owner: side };
@@ -277,7 +305,7 @@
                     if (piece) {
                         const pieceDiv = document.createElement('div');
                         let isPromoted = Object.values(PROMOTE_MAP).includes(piece.type);
-                        pieceDiv.className = 'piece ' + piece.owner + (isPromoted ? ' promoted' : '');
+                        pieceDiv.className = 'piece ' + piece.owner + (isPromoted ? ' promoted' : '') + (piece.type === 'GYOKU' ? ' gyoku' : '');
                         if (isPromoted) {
                             // 成駒は小さく縦に
                             pieceDiv.innerHTML = `<span>${PIECES[piece.type].split('').join('<br>')}</span>`;
@@ -335,6 +363,11 @@
                     if (board[r][c]) {
                         let capturedType = board[r][c].type;
                         if (UNPROMOTE_MAP[capturedType]) capturedType = UNPROMOTE_MAP[capturedType];
+                        // 玉が取られたらアニメーションして終了
+                        if (capturedType === 'GYOKU') {
+                            animateGyokuCapture(r, c, board[r][c].owner);
+                            return;
+                        }
                         captures[turn][capturedType] = (captures[turn][capturedType] || 0) + 1;
                     }
                     board[r][c] = { ...movePiece };
@@ -678,6 +711,22 @@
             moveOptions = [];
             document.getElementById('turn-info').textContent = '先手の番';
             render();
+        }
+        // 玉が取られたときのアニメーション
+        function animateGyokuCapture(row, col, owner) {
+            gameOver = true;
+            render();
+            setTimeout(() => {
+                const boardDiv = document.getElementById('board');
+                const idx = row * 9 + col;
+                const cell = boardDiv.children[idx];
+                if (cell && cell.firstChild) {
+                    cell.firstChild.classList.add('captured-gyoku');
+                }
+                setTimeout(() => {
+                    document.getElementById('turn-info').textContent = (owner === 'sente' ? '後手' : '先手') + 'の勝ち！（玉を取りました）（対局終了）';
+                }, 700);
+            }, 30);
         }
     </script>
 </body>

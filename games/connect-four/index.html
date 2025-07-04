@@ -117,6 +117,33 @@
             transform: scale(1.07);
             box-shadow: 0 4px 18px #ffd70099, 0 0 0 2px #ffd700cc inset;
         }
+
+        .disc-anim {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 90px;
+            height: 90px;
+            z-index: 10;
+            pointer-events: none;
+            transition: transform 0.35s cubic-bezier(.5, 1.7, .5, 1);
+        }
+
+        .disc-anim.red {
+            background: radial-gradient(circle at 30% 30%, #ff4c4c 60%, #b71c1c 100%);
+            border-radius: 50%;
+            box-shadow: 0 2px 8px #ff4c4c88, 0 0 0 2px #ffd70044 inset;
+        }
+
+        .disc-anim.yellow {
+            background: radial-gradient(circle at 30% 30%, #ffd700 70%, #b8860b 100%);
+            border-radius: 50%;
+            box-shadow: 0 2px 8px #ffd70088, 0 0 0 2px #ffd70044 inset;
+        }
+
+        .disc-anim.bounce {
+            transition: transform 0.18s cubic-bezier(.3, 1.5, .5, 1);
+        }
     </style>
 </head>
 
@@ -125,6 +152,9 @@
     <div id="turn-info">赤の番</div>
     <div class="board" id="board"></div>
     <button id="reset-btn">リセット</button>
+    <div style="margin-bottom:8px;">
+        <label><input type="checkbox" id="ai-yellow"> 黄（後手）をAIにする</label>
+    </div>
     <script>
         const ROWS = 6;
         const COLS = 7;
@@ -132,6 +162,7 @@
         let turn = 'red';
         let gameOver = false;
         let winCells = [];
+        let aiYellow = false;
 
         function resetBoard() {
             board = Array.from({ length: ROWS }, () => Array(COLS).fill(null));
@@ -140,11 +171,15 @@
             winCells = [];
             render();
             document.getElementById('turn-info').textContent = '赤の番';
+            if (aiYellow && turn === 'yellow' && !gameOver) {
+                setTimeout(aiMove, 400);
+            }
         }
 
         function render() {
             const boardDiv = document.getElementById('board');
             boardDiv.innerHTML = '';
+            boardDiv.style.position = 'relative';
             for (let r = 0; r < ROWS; r++) {
                 for (let c = 0; c < COLS; c++) {
                     const cell = document.createElement('div');
@@ -161,31 +196,62 @@
             } else if (gameOver) {
                 document.getElementById('turn-info').textContent = '引き分け！';
             }
+            if (aiYellow && turn === 'yellow' && !gameOver) {
+                setTimeout(aiMove, 400);
+            }
         }
 
         function handleCellClick(e) {
             if (gameOver) return;
             const col = parseInt(e.currentTarget.dataset.col);
             // 一番下の空きマスを探す
+            let targetRow = -1;
             for (let r = ROWS - 1; r >= 0; r--) {
                 if (!board[r][col]) {
-                    board[r][col] = turn;
-                    if (checkWin(r, col)) {
-                        gameOver = true;
-                        render();
-                        return;
-                    }
-                    if (board.flat().every(cell => cell)) {
-                        gameOver = true;
-                        render();
-                        return;
-                    }
-                    turn = (turn === 'red') ? 'yellow' : 'red';
-                    document.getElementById('turn-info').textContent = (turn === 'red' ? '赤' : '黄') + 'の番';
+                    targetRow = r;
+                    break;
+                }
+            }
+            if (targetRow === -1) return;
+            animateDiscDrop(targetRow, col, turn, () => {
+                board[targetRow][col] = turn;
+                if (checkWin(targetRow, col)) {
+                    gameOver = true;
                     render();
                     return;
                 }
-            }
+                if (board.flat().every(cell => cell)) {
+                    gameOver = true;
+                    render();
+                    return;
+                }
+                turn = (turn === 'red') ? 'yellow' : 'red';
+                document.getElementById('turn-info').textContent = (turn === 'red' ? '赤' : '黄') + 'の番';
+                render();
+            });
+        }
+
+        function animateDiscDrop(row, col, color, callback) {
+            const boardDiv = document.getElementById('board');
+            const disc = document.createElement('div');
+            disc.className = 'disc-anim ' + color;
+            disc.style.transform = `translate(${col * 98}px, 0px)`;
+            boardDiv.appendChild(disc);
+            setTimeout(() => {
+                disc.style.transform = `translate(${col * 98}px, ${row * 98}px)`;
+            }, 10);
+            setTimeout(() => {
+                // バウンド
+                disc.classList.add('bounce');
+                disc.style.transform = `translate(${col * 98}px, ${row * 98 - 18}px)`;
+                setTimeout(() => {
+                    disc.style.transform = `translate(${col * 98}px, ${row * 98}px)`;
+                    setTimeout(() => {
+                        boardDiv.removeChild(disc);
+                        callback();
+                    }, 120);
+                }, 120);
+            }, 370);
         }
 
         function checkWin(row, col) {
@@ -216,7 +282,48 @@
             return false;
         }
 
+        function aiMove() {
+            // 合法手を全て列挙
+            let moves = [];
+            for (let c = 0; c < COLS; c++) {
+                if (!board[0][c]) moves.push(c);
+            }
+            if (moves.length === 0) return;
+            const col = moves[Math.floor(Math.random() * moves.length)];
+            // 一番下の空きマスを探す
+            let targetRow = -1;
+            for (let r = ROWS - 1; r >= 0; r--) {
+                if (!board[r][col]) {
+                    targetRow = r;
+                    break;
+                }
+            }
+            if (targetRow === -1) return;
+            animateDiscDrop(targetRow, col, 'yellow', () => {
+                board[targetRow][col] = 'yellow';
+                if (checkWin(targetRow, col)) {
+                    gameOver = true;
+                    render();
+                    return;
+                }
+                if (board.flat().every(cell => cell)) {
+                    gameOver = true;
+                    render();
+                    return;
+                }
+                turn = 'red';
+                document.getElementById('turn-info').textContent = '赤の番';
+                render();
+            });
+        }
+
         document.getElementById('reset-btn').addEventListener('click', resetBoard);
+        document.getElementById('ai-yellow').addEventListener('change', function () {
+            aiYellow = this.checked;
+            if (aiYellow && turn === 'yellow' && !gameOver) {
+                setTimeout(aiMove, 400);
+            }
+        });
         resetBoard();
     </script>
 </body>
