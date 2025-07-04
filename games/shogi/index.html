@@ -101,15 +101,67 @@
         #reset-btn:hover {
             background: #8c6b2e;
         }
+
+        .shogi-container {
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+        }
+
+        .side-captures {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-left: 18px;
+            min-width: 48px;
+        }
+
+        .side-captures .capture-piece {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .side-captures .piece {
+            margin-bottom: 2px;
+        }
+
+        .piece-count {
+            font-size: 0.8em;
+            color: #555;
+            margin-top: 0px;
+            text-align: center;
+        }
+
+        .piece.promoted {
+            font-size: 0.8em;
+            letter-spacing: 0;
+            padding: 0;
+            line-height: 1.1;
+        }
+
+        .piece.promoted span {
+            display: inline-block;
+            writing-mode: vertical-rl;
+            font-size: 1em;
+        }
     </style>
 </head>
 
 <body>
     <h1>将棋</h1>
+    <div style="margin-bottom:8px;">
+        <label><input type="checkbox" id="ai-gote"> 後手をAIにする</label>
+    </div>
     <div id="turn-info">先手の番</div>
-    <div id="sente-captures" style="margin-bottom:8px;"></div>
-    <div class="shogi-board" id="board"></div>
-    <div id="gote-captures" style="margin-top:8px;"></div>
+    <div class="shogi-container">
+        <div>
+            <div class="shogi-board" id="board"></div>
+        </div>
+        <div class="side-captures" id="sente-captures"></div>
+        <div class="side-captures" id="gote-captures"></div>
+    </div>
     <button id="reset-btn">リセット</button>
     <button id="resign-btn">投了</button>
     <script>
@@ -155,6 +207,13 @@
         let dropMode = null; // {type: 'FU', ...}
         let captures = { sente: {}, gote: {} };
         let gameOver = false;
+        let aiGote = false;
+        document.getElementById('ai-gote').addEventListener('change', function () {
+            aiGote = this.checked;
+            if (aiGote && turn === 'gote' && !gameOver) {
+                setTimeout(aiMove, 400);
+            }
+        });
         function deepCopyBoard(src) {
             return src.map(row => row.map(cell => cell ? { ...cell } : null));
         }
@@ -168,24 +227,34 @@
             gameOver = false;
             render();
             document.getElementById('turn-info').textContent = '先手の番';
+            if (aiGote && turn === 'gote' && !gameOver) {
+                setTimeout(aiMove, 400);
+            }
         }
         function render() {
-            // 持ち駒表示
+            // 持ち駒表示（右側縦並び）
             for (const side of ['sente', 'gote']) {
                 const capDiv = document.getElementById(side + '-captures');
                 capDiv.innerHTML = '';
                 Object.keys(PIECES).forEach(type => {
                     if (captures[side][type]) {
+                        const wrap = document.createElement('div');
+                        wrap.className = 'capture-piece';
                         const btn = document.createElement('button');
-                        btn.textContent = PIECES[type] + '×' + captures[side][type];
-                        btn.className = 'piece ' + side;
+                        btn.className = 'piece ' + side + (PROMOTE_MAP[type] ? '' : '');
+                        btn.textContent = PIECES[type];
                         btn.onclick = () => {
                             dropMode = { type, owner: side };
                             selected = null;
                             moveOptions = getDropOptions(type, side);
                             render();
                         };
-                        capDiv.appendChild(btn);
+                        wrap.appendChild(btn);
+                        const count = document.createElement('div');
+                        count.className = 'piece-count';
+                        count.textContent = '×' + captures[side][type];
+                        wrap.appendChild(count);
+                        capDiv.appendChild(wrap);
                     }
                 });
             }
@@ -207,8 +276,14 @@
                     const piece = board[r][c];
                     if (piece) {
                         const pieceDiv = document.createElement('div');
-                        pieceDiv.className = 'piece ' + piece.owner;
-                        pieceDiv.textContent = PIECES[piece.type];
+                        let isPromoted = Object.values(PROMOTE_MAP).includes(piece.type);
+                        pieceDiv.className = 'piece ' + piece.owner + (isPromoted ? ' promoted' : '');
+                        if (isPromoted) {
+                            // 成駒は小さく縦に
+                            pieceDiv.innerHTML = `<span>${PIECES[piece.type].split('').join('<br>')}</span>`;
+                        } else {
+                            pieceDiv.textContent = PIECES[piece.type];
+                        }
                         cell.appendChild(pieceDiv);
                     }
                     cell.addEventListener('click', handleCellClick);
@@ -218,6 +293,10 @@
             // 勝敗表示
             if (gameOver) {
                 document.getElementById('turn-info').textContent += '（対局終了）';
+            }
+            // AIの手番なら自動で指す
+            if (aiGote && turn === 'gote' && !gameOver) {
+                setTimeout(aiMove, 400);
             }
         }
         function handleCellClick(e) {
@@ -551,6 +630,54 @@
                     document.getElementById('turn-info').textContent = (turn === 'sente' ? '先手' : '後手') + 'は王手！';
                 }
             }
+        }
+        function aiMove() {
+            // 合法手を全て列挙
+            let moves = [];
+            for (let r = 0; r < 9; r++) {
+                for (let c = 0; c < 9; c++) {
+                    const p = board[r][c];
+                    if (p && p.owner === 'gote') {
+                        const opts = getMoveOptions({ row: r, col: c });
+                        for (const opt of opts) {
+                            moves.push({ from: { row: r, col: c }, to: opt, promote: canPromote(p, { row: r, col: c }, opt) });
+                        }
+                    }
+                }
+            }
+            // 持ち駒打ち
+            Object.keys(captures.gote).forEach(type => {
+                const opts = getDropOptions(type, 'gote');
+                for (const opt of opts) {
+                    moves.push({ drop: true, type, to: opt });
+                }
+            });
+            if (moves.length === 0) return;
+            // ランダムで1手選ぶ
+            const move = moves[Math.floor(Math.random() * moves.length)];
+            if (move.drop) {
+                board[move.to.row][move.to.col] = { type: move.type, owner: 'gote' };
+                captures.gote[move.type]--;
+                if (captures.gote[move.type] === 0) delete captures.gote[move.type];
+            } else {
+                let movePiece = board[move.from.row][move.from.col];
+                // 取った駒を持ち駒に
+                if (board[move.to.row][move.to.col]) {
+                    let capturedType = board[move.to.row][move.to.col].type;
+                    if (UNPROMOTE_MAP[capturedType]) capturedType = UNPROMOTE_MAP[capturedType];
+                    captures.gote[capturedType] = (captures.gote[capturedType] || 0) + 1;
+                }
+                board[move.to.row][move.to.col] = { ...movePiece };
+                if (move.promote && PROMOTE_MAP[movePiece.type]) {
+                    board[move.to.row][move.to.col].type = PROMOTE_MAP[movePiece.type];
+                }
+                board[move.from.row][move.from.col] = null;
+            }
+            turn = 'sente';
+            selected = null;
+            moveOptions = [];
+            document.getElementById('turn-info').textContent = '先手の番';
+            render();
         }
     </script>
 </body>

@@ -371,10 +371,12 @@
                         const cellIndex = fr * 8 + fc;
                         const cell = boardElement.children[cellIndex];
                         if (cell && cell.firstChild) {
+                            cell.firstChild.classList.remove('flipped');
+                            void cell.firstChild.offsetWidth;
                             cell.firstChild.classList.add('flipped');
                             setTimeout(() => {
                                 cell.firstChild.classList.remove('flipped');
-                            }, 300);
+                            }, 320);
                         }
                     }
                     flipped = true;
