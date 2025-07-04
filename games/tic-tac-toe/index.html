@@ -279,6 +279,8 @@
         <div style="margin-bottom: 12px;">
             <label><input type="checkbox" id="ai-x"> ×（後手）をAIにする</label>
         </div>
+        <button id="share-url-btn" style="margin-bottom: 12px;">このURLを相手に送る</button>
+        <input id="share-url" style="width:90%;margin-bottom:8px;" readonly>
     </div>
 
     <script>
@@ -570,6 +572,7 @@
             currentPlayerHistory.push(clickedCellIndex);
 
             checkResult();
+            afterMove();
         }
 
         /**
@@ -627,6 +630,7 @@
 
             handlePlayerChange();
             startTurnTimer(); // プレイヤーが変わったら新しいターンのタイマーを開始
+            afterMove();
         }
 
         /**
@@ -679,6 +683,7 @@
             if (aiX && currentPlayer === 'X' && gameActive) {
                 setTimeout(aiMove, 400);
             }
+            afterMove();
         }
 
         /**
@@ -703,6 +708,43 @@
             if (moves.length === 0) return;
             const idx = moves[Math.floor(Math.random() * moves.length)];
             handleCellClick({ target: cells[idx] });
+        }
+
+        // URL共有型オンライン対戦
+        function encodeState() {
+            return [gameState.join(''), currentPlayer, aiX ? 1 : 0].join(',');
+        }
+        function decodeState(str) {
+            const [state, player, ai] = str.split(',');
+            if (!state || state.length !== 9) return;
+            for (let i = 0; i < 9; i++) gameState[i] = state[i] || '';
+            currentPlayer = player === 'X' ? 'X' : 'O';
+            aiX = ai === '1';
+            document.getElementById('ai-x').checked = aiX;
+        }
+        function updateShareUrl() {
+            const base = location.origin + location.pathname;
+            const hash = encodeState();
+            const url = base + '#' + hash;
+            document.getElementById('share-url').value = url;
+        }
+        document.getElementById('share-url-btn').onclick = function () {
+            updateShareUrl();
+            document.getElementById('share-url').select();
+            document.execCommand('copy');
+        };
+        // ページ読み込み時にURLから状態復元
+        if (location.hash.length > 1) {
+            decodeState(location.hash.slice(1));
+            renderBoard();
+            updateStatus();
+        }
+        // 各手番後にURL更新
+        function afterMove() {
+            updateShareUrl();
+            if (aiX && currentPlayer === 'X' && gameActive) {
+                setTimeout(aiMove, 400);
+            }
         }
     </script>
 </body>

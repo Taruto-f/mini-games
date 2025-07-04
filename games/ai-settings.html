@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI対戦設定</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            background: linear-gradient(135deg, #232526 0%, #414345 100%);
+            color: #ffd700;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        h1 {
+            margin-top: 32px;
+            margin-bottom: 18px;
+            font-size: 2em;
+            letter-spacing: 0.08em;
+            text-shadow: 2px 2px 12px #222, 0 0 8px #fff2;
+        }
+
+        .settings-box {
+            background: rgba(30, 30, 40, 0.97);
+            border-radius: 18px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 8px #2226 inset;
+            padding: 32px 28px 28px 28px;
+            max-width: 420px;
+            width: 95vw;
+            text-align: center;
+            margin-bottom: 32px;
+        }
+
+        label {
+            font-size: 1.1em;
+            margin: 0 8px 0 0;
+        }
+
+        select,
+        input[type=checkbox] {
+            font-size: 1em;
+            margin: 0 8px 0 0;
+        }
+
+        .game-link {
+            display: inline-block;
+            margin: 18px 8px 0 8px;
+            padding: 12px 32px;
+            font-size: 1.1em;
+            cursor: pointer;
+            background: linear-gradient(90deg, #ffd700 60%, #b8860b 100%);
+            color: #232526;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px #2226;
+            text-decoration: none;
+            transition: background 0.3s, color 0.2s, transform 0.15s;
+        }
+
+        .game-link:hover {
+            background: linear-gradient(90deg, #fffbe6 60%, #ffd700 100%);
+            color: #000;
+            transform: scale(1.07);
+            box-shadow: 0 4px 18px #ffd70099, 0 0 0 2px #ffd700cc inset;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>AI対戦設定</h1>
+    <div class="settings-box">
+        <div style="margin-bottom: 18px;">
+            <label>ゲーム選択:
+                <select id="game-select">
+                    <option value="othello">オセロ</option>
+                    <option value="tic-tac-toe">三目並べ</option>
+                    <option value="connect-four">コネクトフォー</option>
+                </select>
+            </label>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <label><input type="checkbox" id="ai-first"> 先手をAIにする</label>
+            <select id="ai-first-level">
+                <option value="random">ランダム</option>
+                <option value="normal">普通</option>
+                <option value="strong">強い</option>
+            </select>
+        </div>
+        <div style="margin-bottom: 10px;">
+            <label><input type="checkbox" id="ai-second"> 後手をAIにする</label>
+            <select id="ai-second-level">
+                <option value="random">ランダム</option>
+                <option value="normal">普通</option>
+                <option value="strong">強い</option>
+            </select>
+        </div>
+        <button class="game-link" id="start-btn">ゲーム開始</button>
+    </div>
+    <script>
+        document.getElementById('start-btn').onclick = function () {
+            const game = document.getElementById('game-select').value;
+            const aiFirst = document.getElementById('ai-first').checked;
+            const aiSecond = document.getElementById('ai-second').checked;
+            const aiFirstLevel = document.getElementById('ai-first-level').value;
+            const aiSecondLevel = document.getElementById('ai-second-level').value;
+            const params = new URLSearchParams({
+                aiFirst: aiFirst ? '1' : '0',
+                aiSecond: aiSecond ? '1' : '0',
+                aiFirstLevel,
+                aiSecondLevel
+            }).toString();
+            let url = '';
+            if (game === 'othello') url = './othello/index.html?' + params;
+            if (game === 'tic-tac-toe') url = './tic-tac-toe/index.html?' + params;
+            if (game === 'connect-four') url = './connect-four/index.html?' + params;
+            window.location.href = url;
+        };
+    </script>
+</body>
+
+</html>

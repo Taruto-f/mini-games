@@ -87,6 +87,10 @@
             color: #1a237e;
         }
 
+        .piece.gyoku.gote {
+            color: #b12c2c;
+        }
+
         .piece.captured-gyoku {
             animation: gyoku-capture 0.7s cubic-bezier(.5, 1.7, .5, 1);
             opacity: 0;
@@ -116,18 +120,34 @@
             margin-bottom: 10px;
         }
 
-        #reset-btn {
-            padding: 8px 24px;
-            font-size: 1em;
-            border-radius: 8px;
-            border: none;
-            background: #b48a3c;
-            color: #fff;
+        .shogi-btn {
+            margin: 8px 8px 8px 0;
+            padding: 12px 32px;
+            font-size: 1.1em;
             cursor: pointer;
+            background: linear-gradient(90deg, #ffd700 60%, #b8860b 100%);
+            color: #232526;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px #2226;
+            transition: background 0.3s, color 0.2s, transform 0.15s;
+            letter-spacing: 0.08em;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5em;
         }
 
-        #reset-btn:hover {
-            background: #8c6b2e;
+        .shogi-btn:hover {
+            background: linear-gradient(90deg, #fffbe6 60%, #ffd700 100%);
+            color: #000;
+            transform: scale(1.07);
+            box-shadow: 0 4px 18px #ffd70099, 0 0 0 2px #ffd700cc inset;
+        }
+
+        .shogi-btn .icon {
+            font-size: 1.2em;
+            vertical-align: middle;
         }
 
         .shogi-container {
@@ -190,8 +210,10 @@
         <div class="side-captures" id="sente-captures"></div>
         <div class="side-captures" id="gote-captures"></div>
     </div>
-    <button id="reset-btn">リセット</button>
-    <button id="resign-btn">投了</button>
+    <button id="reset-btn" class="shogi-btn"><span class="icon">🔄</span>リセット</button>
+    <button id="resign-btn" class="shogi-btn"><span class="icon">🏳️</span>投了</button>
+    <button id="share-url-btn" class="shogi-btn"><span class="icon">🔗</span>このURLを相手に送る</button>
+    <input id="share-url" style="width:90%;margin-bottom:8px;" readonly>
     <script>
         // 駒の種類と表示
         const PIECES = {
@@ -258,6 +280,7 @@
             if (aiGote && turn === 'gote' && !gameOver) {
                 setTimeout(aiMove, 400);
             }
+            afterMove();
         }
         function render() {
             // 持ち駒表示（右側縦並び）
@@ -401,6 +424,7 @@
             }
             // 手番交代後の詰み・王手判定
             if (!gameOver) checkCheckmate();
+            afterMove();
         }
         // 成れるかどうか
         function canPromote(piece, from, to) {
@@ -608,7 +632,7 @@
             let myKing = null;
             for (let r = 0; r < 9; r++) for (let c = 0; c < 9; c++) {
                 const p = board[r][c];
-                if (p && p.type === 'OU' && p.owner === turn) myKing = { row: r, col: c };
+                if (p && p.type === 'GYOKU' && p.owner === turn) myKing = { row: r, col: c };
             }
             if (!myKing) {
                 gameOver = true;
@@ -711,6 +735,7 @@
             moveOptions = [];
             document.getElementById('turn-info').textContent = '先手の番';
             render();
+            afterMove();
         }
         // 玉が取られたときのアニメーション
         function animateGyokuCapture(row, col, owner) {
@@ -727,6 +752,62 @@
                     document.getElementById('turn-info').textContent = (owner === 'sente' ? '後手' : '先手') + 'の勝ち！（玉を取りました）（対局終了）';
                 }, 700);
             }, 30);
+        }
+        // URL共有型オンライン対戦
+        function encodeState() {
+            // 盤面, 手番, 持ち駒, AI設定
+            let flat = board.flat().map(p => {
+                if (!p) return '000';
+                let t = p.type.padEnd(2, '_'); // 2文字にパディング
+                return (p.owner === 'sente' ? 'S' : 'G') + t;
+            }).join('');
+            let cap = ['sente', 'gote'].map(side => Object.entries(captures[side]).map(([k, v]) => k + v).join('-')).join('|');
+            return [flat, turn, cap, aiGote ? 1 : 0].join(',');
+        }
+        function decodeState(str) {
+            const [flat, t, cap, ai] = str.split(',');
+            if (!flat || flat.length !== 243) return;
+            for (let i = 0; i < 81; i++) {
+                const r = Math.floor(i / 9), c = i % 9;
+                const code = flat.slice(i * 3, i * 3 + 3);
+                if (code === '000') { board[r][c] = null; continue; }
+                const owner = code[0] === 'S' ? 'sente' : 'gote';
+                const type = code.slice(1).replace('_', '');
+                board[r][c] = { type, owner };
+            }
+            turn = t === 'gote' ? 'gote' : 'sente';
+            // 持ち駒
+            captures = { sente: {}, gote: {} };
+            if (cap) {
+                const [s, g] = cap.split('|');
+                if (s) s.split('-').forEach(x => { if (x.length > 1) captures.sente[x[0] + (x[1] === 'Y' ? 'Y' : '')] = parseInt(x.slice(1)) });
+                if (g) g.split('-').forEach(x => { if (x.length > 1) captures.gote[x[0] + (x[1] === 'Y' ? 'Y' : '')] = parseInt(x.slice(1)) });
+            }
+            aiGote = ai === '1';
+            document.getElementById('ai-gote').checked = aiGote;
+        }
+        function updateShareUrl() {
+            const base = location.origin + location.pathname;
+            const hash = encodeState();
+            const url = base + '#' + hash;
+            document.getElementById('share-url').value = url;
+        }
+        document.getElementById('share-url-btn').onclick = function () {
+            updateShareUrl();
+            document.getElementById('share-url').select();
+            document.execCommand('copy');
+        };
+        // ページ読み込み時にURLから状態復元
+        if (location.hash.length > 1) {
+            decodeState(location.hash.slice(1));
+            render();
+        }
+        // 各手番後にURL更新
+        function afterMove() {
+            updateShareUrl();
+            if (aiGote && turn === 'gote' && !gameOver) {
+                setTimeout(aiMove, 400);
+            }
         }
     </script>
 </body>

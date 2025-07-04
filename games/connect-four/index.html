@@ -155,6 +155,8 @@
     <div style="margin-bottom:8px;">
         <label><input type="checkbox" id="ai-yellow"> 黄（後手）をAIにする</label>
     </div>
+    <button id="share-url-btn" style="margin-bottom: 12px;">このURLを相手に送る</button>
+    <input id="share-url" style="width:90%;margin-bottom:8px;" readonly>
     <script>
         const ROWS = 6;
         const COLS = 7;
@@ -174,6 +176,7 @@
             if (aiYellow && turn === 'yellow' && !gameOver) {
                 setTimeout(aiMove, 400);
             }
+            afterMove();
         }
 
         function render() {
@@ -199,6 +202,7 @@
             if (aiYellow && turn === 'yellow' && !gameOver) {
                 setTimeout(aiMove, 400);
             }
+            afterMove();
         }
 
         function handleCellClick(e) {
@@ -324,6 +328,48 @@
                 setTimeout(aiMove, 400);
             }
         });
+
+        // URL共有型オンライン対戦
+        function encodeState() {
+            // 盤面, 手番, AI設定
+            let flat = board.flat().map(v => v ? (v === 'red' ? 'r' : 'y') : '0').join('');
+            return [flat, turn, aiYellow ? 1 : 0].join(',');
+        }
+        function decodeState(str) {
+            const [flat, t, ai] = str.split(',');
+            if (!flat || flat.length !== ROWS * COLS) return;
+            for (let i = 0; i < ROWS * COLS; i++) {
+                const r = Math.floor(i / COLS), c = i % COLS;
+                board[r][c] = flat[i] === 'r' ? 'red' : flat[i] === 'y' ? 'yellow' : null;
+            }
+            turn = t === 'yellow' ? 'yellow' : 'red';
+            aiYellow = ai === '1';
+            document.getElementById('ai-yellow').checked = aiYellow;
+        }
+        function updateShareUrl() {
+            const base = location.origin + location.pathname;
+            const hash = encodeState();
+            const url = base + '#' + hash;
+            document.getElementById('share-url').value = url;
+        }
+        document.getElementById('share-url-btn').onclick = function () {
+            updateShareUrl();
+            document.getElementById('share-url').select();
+            document.execCommand('copy');
+        };
+        // ページ読み込み時にURLから状態復元
+        if (location.hash.length > 1) {
+            decodeState(location.hash.slice(1));
+            render();
+        }
+        // 各手番後にURL更新
+        function afterMove() {
+            updateShareUrl();
+            if (aiYellow && turn === 'yellow' && !gameOver) {
+                setTimeout(aiMove, 400);
+            }
+        }
+
         resetBoard();
     </script>
 </body>
