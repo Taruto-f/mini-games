@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>ルドー</title>
+    <link rel="stylesheet" href="../../style.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a1a 0%, #3a5d2c 100%);
+            margin: 0;
+        }
+
+        h1 {
+            color: #fff;
+            letter-spacing: 0.1em;
+            text-shadow: 2px 2px 8px #222;
+            margin-bottom: 10px;
+        }
+
+        .ludo-board {
+            display: grid;
+            grid-template-columns: repeat(7, 44px);
+            grid-template-rows: repeat(7, 44px);
+            width: 308px;
+            height: 308px;
+            border: 6px solid #b8860b;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #357a38 60%, #1b3c1b 100%);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 8px #222 inset;
+            position: relative;
+            margin: 30px auto 18px auto;
+        }
+
+        .cell {
+            width: 44px;
+            height: 44px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border: 1px solid rgba(0, 0, 0, 0.15);
+            box-sizing: border-box;
+            position: relative;
+            background: repeating-linear-gradient(135deg, #2e8b57 0 8px, #276644 8px 16px);
+        }
+
+        .piece {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #fff 60%, #bbb 100%);
+            box-shadow: 0 2px 8px #111, 0 0 0 2px #fff3 inset;
+            border: 2px solid #b8860b;
+            transition: transform 0.3s cubic-bezier(.68, -0.55, .27, 1.55), box-shadow 0.2s;
+            transform-style: preserve-3d;
+            backface-visibility: hidden;
+            position: relative;
+        }
+
+        .piece.red {
+            background: radial-gradient(circle at 30% 30%, #ffb3b3 60%, #e74c3c 100%);
+            box-shadow: 0 2px 8px #a00, 0 0 0 2px #fff3 inset;
+        }
+
+        .piece.green {
+            background: radial-gradient(circle at 30% 30%, #b3ffb3 60%, #27ae60 100%);
+            box-shadow: 0 2px 8px #070, 0 0 0 2px #fff3 inset;
+        }
+
+        .piece.blue {
+            background: radial-gradient(circle at 30% 30%, #b3d1ff 60%, #2980b9 100%);
+            box-shadow: 0 2px 8px #005, 0 0 0 2px #fff3 inset;
+        }
+
+        .piece.yellow {
+            background: radial-gradient(circle at 30% 30%, #fff9b3 60%, #f1c40f 100%);
+            box-shadow: 0 2px 8px #aa0, 0 0 0 2px #fff3 inset;
+        }
+
+        .dice-area {
+            text-align: center;
+            margin: 20px;
+        }
+
+        #roll-btn {
+            margin-bottom: 8px;
+            padding: 10px 24px;
+            font-size: 1.1em;
+            cursor: pointer;
+            background: linear-gradient(90deg, #ffd700 60%, #b8860b 100%);
+            color: #222;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px #2226;
+            transition: background 0.3s, color 0.2s;
+        }
+
+        #roll-btn:hover {
+            background: linear-gradient(90deg, #fffbe6 60%, #ffd700 100%);
+            color: #000;
+        }
+
+        #dice-result {
+            color: #fff;
+            font-size: 1.3em;
+            margin-top: 6px;
+            text-shadow: 1px 1px 4px #333;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>ルドー</h1>
+    <div class="ludo-board" id="ludo-board"></div>
+    <div class="dice-area">
+        <button id="roll-btn">サイコロを振る</button>
+        <div id="dice-result"></div>
+    </div>
+    <script src="ludo.js"></script>
+</body>
+
+</html>

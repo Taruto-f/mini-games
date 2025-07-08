@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>神経衰弱（メモリーゲーム）</title>
+    <link rel="stylesheet" href="../../style.css">
+    <style>
+        .memory-board {
+            display: grid;
+            grid-template-columns: repeat(4, 80px);
+            gap: 10px;
+            justify-content: center;
+            margin-top: 40px;
+        }
+
+        .card {
+            width: 80px;
+            height: 100px;
+            background: #2e8b57;
+            color: white;
+            font-size: 2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            border-radius: 8px;
+            user-select: none;
+        }
+
+        .card.flipped,
+        .card.matched {
+            background: #fff;
+            color: #2e8b57;
+            cursor: default;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>神経衰弱（メモリーゲーム）</h1>
+    <div class="memory-board" id="memory-board"></div>
+    <button onclick="location.reload()">リセット</button>
+    <script src="memory.js"></script>
+</body>
+
+</html>
