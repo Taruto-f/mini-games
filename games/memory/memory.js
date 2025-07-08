@@ -1,5 +1,12 @@
 const board = document.getElementById('memory-board');
-const symbols = ['🍎', '🍌', '🍇', '🍒', '🍋', '🍉', '🍑', '🥝'];
+const suits = ['♠', '♥', '♦', '♣'];
+const ranks = ['A', '2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K'];
+const symbols = [];
+suits.forEach(suit => {
+    ranks.forEach(rank => {
+        symbols.push(suit + rank);
+    });
+});
 let cards = [];
 let flipped = [];
 let lock = false;
@@ -13,6 +20,7 @@ function shuffle(array) {
 }
 
 function createBoard() {
+    // 52枚のペア（104枚）
     const pairSymbols = shuffle([...symbols, ...symbols]);
     board.innerHTML = '';
     cards = [];
@@ -26,6 +34,8 @@ function createBoard() {
         board.appendChild(card);
         cards.push(card);
     });
+    // グリッドを13列×8行に調整
+    board.style.gridTemplateColumns = 'repeat(13, 48px)';
 }
 
 function flipCard(e) {

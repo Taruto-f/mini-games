@@ -6,26 +6,47 @@
     <title>神経衰弱（メモリーゲーム）</title>
     <link rel="stylesheet" href="../../style.css">
     <style>
+        .memory-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-start;
+            min-height: 100vh;
+            padding: 24px 0 32px 0;
+        }
+
+        .memory-title {
+            font-size: 1.6em;
+            color: #fff;
+            letter-spacing: 0.1em;
+            text-shadow: 2px 2px 8px #222;
+            margin-bottom: 18px;
+            margin-top: 0;
+        }
+
         .memory-board {
             display: grid;
-            grid-template-columns: repeat(4, 80px);
+            grid-template-columns: repeat(13, 32px);
             gap: 10px;
             justify-content: center;
-            margin-top: 40px;
+            margin-bottom: 32px;
         }
 
         .card {
-            width: 80px;
-            height: 100px;
+            width: 32px;
+            height: 44px;
             background: #2e8b57;
             color: white;
-            font-size: 2rem;
+            font-size: 1.1rem;
             display: flex;
             align-items: center;
             justify-content: center;
             cursor: pointer;
-            border-radius: 8px;
+            border-radius: 6px;
             user-select: none;
+            box-shadow: 0 2px 8px #2226;
+            border: 1.5px solid #b8860b;
+            transition: background 0.2s, color 0.2s, box-shadow 0.2s;
         }
 
         .card.flipped,
@@ -33,14 +54,56 @@
             background: #fff;
             color: #2e8b57;
             cursor: default;
+            box-shadow: 0 2px 12px #ffd70099;
+        }
+
+        .reset-btn {
+            margin-top: 0;
+            margin-bottom: 0;
+            padding: 14px 38px;
+            font-size: 1.25em;
+            cursor: pointer;
+            background: linear-gradient(90deg, #ffd700 60%, #b8860b 100%);
+            color: #222;
+            border: none;
+            border-radius: 12px;
+            font-weight: bold;
+            box-shadow: 0 4px 16px #2228, 0 0 0 2px #fff8 inset;
+            transition: background 0.3s, color 0.2s, transform 0.15s, box-shadow 0.2s;
+            letter-spacing: 0.12em;
+            text-shadow: 1px 1px 8px #fff8, 0 2px 8px #ffd70088;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .reset-btn::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(120deg, #fff8 0%, #ffd70044 100%);
+            opacity: 0.18;
+            pointer-events: none;
+            border-radius: 12px;
+        }
+
+        .reset-btn:hover {
+            background: linear-gradient(90deg, #fffbe6 60%, #ffd700 100%);
+            color: #000;
+            transform: translateY(-2px) scale(1.04);
+            box-shadow: 0 8px 24px #ffd70066, 0 0 0 2px #fff8 inset;
         }
     </style>
 </head>
 
 <body>
-    <h1>神経衰弱（メモリーゲーム）</h1>
-    <div class="memory-board" id="memory-board"></div>
-    <button onclick="location.reload()">リセット</button>
+    <div class="memory-container">
+        <h1 class="memory-title">神経衰弱（メモリーゲーム）</h1>
+        <div class="memory-board" id="memory-board"></div>
+        <button class="reset-btn" onclick="location.reload()">&#x21bb; リセット</button>
+    </div>
     <script src="memory.js"></script>
 </body>
 

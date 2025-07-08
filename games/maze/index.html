@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <title>むずい迷路ゲーム</title>
+    <link rel="stylesheet" href="../../style.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #232526 0%, #414345 100%);
+            margin: 0;
+        }
+
+        h1 {
+            color: #ffd700;
+            font-size: 2em;
+            letter-spacing: 0.08em;
+            margin-bottom: 24px;
+            text-shadow: 2px 2px 12px #222, 0 0 8px #fff2;
+        }
+
+        .maze-board {
+            display: grid;
+            grid-template-columns: repeat(21, 32px);
+            grid-template-rows: repeat(21, 32px);
+            gap: 4px;
+            border: 4px solid #ffd700;
+            background: linear-gradient(135deg, #313a3a 60%, #232526 100%);
+            box-shadow: 0 4px 18px #0008, 0 0 0 2px #ffd70044 inset;
+            border-radius: 16px;
+            margin: 0 auto 18px auto;
+        }
+
+        .cell {
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #232526 60%, #313a3a 100%);
+            border: 1.5px solid #ffd70099;
+            box-shadow: 0 2px 8px #2226;
+            transition: background 0.18s, transform 0.18s, box-shadow 0.18s;
+        }
+
+        .cell.wall {
+            background: #232526;
+            border-radius: 8px;
+            border: 1.5px solid #444;
+            box-shadow: none;
+        }
+
+        .cell.player {
+            background: radial-gradient(circle at 30% 30%, #ff4c4c 60%, #b71c1c 100%);
+            box-shadow: 0 2px 8px #ff4c4c88, 0 0 0 2px #ffd70044 inset;
+        }
+
+        .cell.goal {
+            background: radial-gradient(circle at 30% 30%, #ffd700 70%, #b8860b 100%);
+            box-shadow: 0 2px 8px #ffd70088, 0 0 0 2px #ffd70044 inset;
+        }
+
+        .reset-btn {
+            margin-top: 20px;
+            padding: 12px 32px;
+            font-size: 1.1em;
+            cursor: pointer;
+            background: linear-gradient(90deg, #ffd700 60%, #b8860b 100%);
+            color: #232526;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            box-shadow: 0 2px 8px #2226;
+            transition: background 0.3s, color 0.2s, transform 0.15s;
+        }
+
+        .reset-btn:hover {
+            background: linear-gradient(90deg, #fffbe6 60%, #ffd700 100%);
+            color: #000;
+            transform: scale(1.07);
+            box-shadow: 0 4px 18px #ffd70099, 0 0 0 2px #ffd700cc inset;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>むずい迷路ゲーム</h1>
+    <div class="maze-board" id="maze-board"></div>
+    <button class="reset-btn" onclick="location.reload()">&#x21bb; リセット</button>
+    <script src="maze.js"></script>
+</body>
+
+</html>
