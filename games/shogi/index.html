@@ -534,7 +534,7 @@
                 if (nr >= 0 && nr < 9 && (!board[nr][from.col] || board[nr][from.col].owner !== owner)) {
                     res.push({ row: nr, col: from.col });
                 }
-            } else if (type === 'OU') {
+            } else if (type === 'OU' || type === 'GYOKU') {
                 for (let dr = -1; dr <= 1; dr++) {
                     for (let dc = -1; dc <= 1; dc++) {
                         if (dr === 0 && dc === 0) continue;
