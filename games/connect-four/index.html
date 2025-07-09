@@ -78,6 +78,42 @@
             text-shadow: 0 0 12px #ffd700, 0 0 4px #fff;
         }
 
+        .cell.win.red {
+            animation: red-glow 0.8s infinite alternate;
+            background: radial-gradient(circle at 30% 30%, #ff4c4c 70%, #b71c1c 100%) !important;
+            box-shadow: 0 0 24px #ff4c4c, 0 0 8px #fff;
+        }
+
+        .cell.win.yellow {
+            animation: yellow-glow 0.8s infinite alternate;
+            background: radial-gradient(circle at 30% 30%, #ffd700 80%, #b8860b 100%) !important;
+            box-shadow: 0 0 24px #ffd700, 0 0 8px #fff;
+        }
+
+        @keyframes red-glow {
+            from {
+                transform: scale(1);
+                box-shadow: 0 0 10px #ff4c4c99;
+            }
+
+            to {
+                transform: scale(1.08);
+                box-shadow: 0 0 32px #ff4c4c;
+            }
+        }
+
+        @keyframes yellow-glow {
+            from {
+                transform: scale(1);
+                box-shadow: 0 0 10px #ffd70099;
+            }
+
+            to {
+                transform: scale(1.08);
+                box-shadow: 0 0 32px #ffd700;
+            }
+        }
+
         @keyframes pulse {
             from {
                 transform: scale(1);
@@ -188,7 +224,10 @@
                     const cell = document.createElement('div');
                     cell.className = 'cell';
                     if (board[r][c]) cell.classList.add(board[r][c]);
-                    if (winCells.some(([wr, wc]) => wr === r && wc === c)) cell.classList.add('win');
+                    if (winCells.some(([wr, wc]) => wr === r && wc === c)) {
+                        cell.classList.add('win');
+                        if (board[r][c]) cell.classList.add(board[r][c]);
+                    }
                     cell.dataset.col = c;
                     cell.addEventListener('click', handleCellClick);
                     boardDiv.appendChild(cell);
@@ -287,14 +326,47 @@
         }
 
         function aiMove() {
-            // 合法手を全て列挙
+            // 1手で勝てる手があれば優先
             let moves = [];
             for (let c = 0; c < COLS; c++) {
                 if (!board[0][c]) moves.push(c);
             }
+            // 1手で勝てる手を探す
+            for (const col of moves) {
+                let targetRow = -1;
+                for (let r = ROWS - 1; r >= 0; r--) {
+                    if (!board[r][col]) {
+                        targetRow = r;
+                        break;
+                    }
+                }
+                if (targetRow === -1) continue;
+                board[targetRow][col] = 'yellow';
+                if (checkWin(targetRow, col)) {
+                    board[targetRow][col] = null;
+                    animateDiscDrop(targetRow, col, 'yellow', () => {
+                        board[targetRow][col] = 'yellow';
+                        if (checkWin(targetRow, col)) {
+                            gameOver = true;
+                            render();
+                            return;
+                        }
+                        if (board.flat().every(cell => cell)) {
+                            gameOver = true;
+                            render();
+                            return;
+                        }
+                        turn = 'red';
+                        document.getElementById('turn-info').textContent = '赤の番';
+                        render();
+                    });
+                    return;
+                }
+                board[targetRow][col] = null;
+            }
+            // それ以外はランダム
             if (moves.length === 0) return;
             const col = moves[Math.floor(Math.random() * moves.length)];
-            // 一番下の空きマスを探す
             let targetRow = -1;
             for (let r = ROWS - 1; r >= 0; r--) {
                 if (!board[r][col]) {

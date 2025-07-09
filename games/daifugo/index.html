@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>大富豪</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Arial', sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #232526 0%, #414345 100%);
+            margin: 0;
+            overflow: hidden;
+        }
+
+        .container {
+            background: rgba(30, 30, 40, 0.97);
+            border-radius: 18px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 0 8px #2226 inset;
+            padding: 38px 32px 32px 32px;
+            max-width: 480px;
+            width: 95vw;
+            text-align: center;
+            margin-top: 32px;
+        }
+
+        h1 {
+            color: #ffd700;
+            font-size: 2em;
+            letter-spacing: 0.08em;
+            margin-bottom: 24px;
+            text-shadow: 2px 2px 12px #222, 0 0 8px #fff2;
+        }
+
+        #status {
+            margin-bottom: 18px;
+            font-size: 1.2em;
+            font-weight: bold;
+            color: #ffd700;
+            text-shadow: 1px 1px 6px #222;
+        }
+
+        #field {
+            min-height: 60px;
+            margin-bottom: 18px;
+        }
+
+        #my-hand {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .card {
+            width: 48px;
+            height: 68px;
+            background: linear-gradient(135deg, #313a3a 60%, #232526 100%);
+            border: 2px solid #ffd700;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px #2226;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #fff;
+            cursor: pointer;
+            transition: background 0.18s, transform 0.18s, box-shadow 0.18s;
+            user-select: none;
+        }
+
+        .card.selected {
+            background: #ffd70044;
+            color: #232526;
+            transform: translateY(-8px) scale(1.08);
+            box-shadow: 0 4px 18px #ffd70099, 0 0 0 2px #ffd700cc inset;
+        }
+
+        #ai-hand {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 8px;
+            margin-bottom: 18px;
+        }
+
+        .card.back {
+            background: repeating-linear-gradient(135deg, #ffd700 0 6px, #b8860b 6px 12px);
+            color: transparent;
+            border: 2px solid #ffd700;
+        }
+
+        #action-btns {
+            margin-bottom: 12px;
+        }
+
+        #action-btns button {
+            margin: 0 8px;
+            padding: 10px 24px;
+            font-size: 1em;
+            border-radius: 8px;
+            border: none;
+            background: linear-gradient(90deg, #ffd700 60%, #b8860b 100%);
+            color: #232526;
+            cursor: pointer;
+            font-weight: bold;
+            box-shadow: 0 2px 8px #2226;
+            transition: background 0.2s, color 0.2s, transform 0.15s;
+        }
+
+        #action-btns button:hover {
+            background: linear-gradient(90deg, #fffbe6 60%, #ffd700 100%);
+            color: #000;
+            transform: scale(1.07);
+            box-shadow: 0 4px 18px #ffd70099, 0 0 0 2px #ffd700cc inset;
+        }
+
+        .card:hover {
+            transform: translateY(-16px) scale(1.12);
+            z-index: 2;
+            box-shadow: 0 8px 24px #ffd700cc, 0 0 0 2px #ffd700cc inset;
+        }
+
+        .fancy-btn {
+            margin: 24px 0 12px 0;
+            padding: 18px 48px;
+            font-size: 1.3em;
+            font-weight: bold;
+            border-radius: 16px;
+            border: none;
+            background: linear-gradient(90deg, #ffd700 60%, #b8860b 100%);
+            color: #232526;
+            box-shadow: 0 4px 24px #ffd70099, 0 0 0 2px #ffd700cc inset;
+            letter-spacing: 0.08em;
+            cursor: pointer;
+            transition: background 0.3s, color 0.2s, transform 0.15s, box-shadow 0.2s;
+        }
+
+        .fancy-btn:hover {
+            background: linear-gradient(90deg, #fffbe6 60%, #ffd700 100%);
+            color: #000;
+            transform: scale(1.08);
+            box-shadow: 0 8px 32px #ffd700cc, 0 0 0 3px #ffd700cc inset;
+        }
+
+        #sidebar-hand {
+            position: fixed;
+            left: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            z-index: 100;
+            padding: 12px 4px 12px 8px;
+            background: rgba(30, 30, 40, 0.92);
+            border-radius: 0 18px 18px 0;
+            box-shadow: 2px 0 16px #0006;
+            min-width: 60px;
+            min-height: 220px;
+            gap: 8px;
+            display: none;
+        }
+
+        .sidebar-card {
+            width: 48px;
+            height: 68px;
+            background: linear-gradient(135deg, #313a3a 60%, #232526 100%);
+            border: 2px solid #ffd700;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px #2226;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #fff;
+            cursor: pointer;
+            user-select: none;
+            margin-bottom: 2px;
+            transition: background 0.18s, transform 0.18s, box-shadow 0.18s;
+        }
+
+        .sidebar-card.glow {
+            background: #fffbe6;
+            color: #b8860b;
+            box-shadow: 0 0 16px 4px #ffd700cc, 0 0 0 2px #ffd700cc inset;
+            transform: scale(1.08) translateX(8px);
+            z-index: 2;
+        }
+
+        .sidebar-card:hover {
+            transform: translateY(-8px) scale(1.12);
+            z-index: 3;
+            box-shadow: 0 8px 24px #ffd700cc, 0 0 0 2px #ffd700cc inset;
+        }
+
+        #my-hand-area {
+            position: fixed;
+            left: 50%;
+            bottom: 24px;
+            transform: translateX(-50%);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            min-width: 320px;
+            pointer-events: none;
+        }
+
+        .my-hand-row {
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+            justify-content: center;
+            pointer-events: auto;
+        }
+
+        .my-card {
+            width: 48px;
+            height: 68px;
+            background: linear-gradient(135deg, #313a3a 60%, #232526 100%);
+            border: 2px solid #ffd700;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px #2226;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.3em;
+            font-weight: bold;
+            color: #fff;
+            cursor: pointer;
+            user-select: none;
+            margin-bottom: 2px;
+            transition: background 0.18s, transform 0.18s, box-shadow 0.18s;
+            opacity: 1;
+            transition: transform 0.35s cubic-bezier(.5, 1.7, .5, 1), opacity 0.35s;
+        }
+
+        .my-card.animate-in {
+            opacity: 0;
+            transform: translateY(-32px) scale(0.8);
+            animation: cardIn 0.4s cubic-bezier(.5, 1.7, .5, 1) forwards;
+        }
+
+        @keyframes cardIn {
+            from {
+                opacity: 0;
+                transform: translateY(-32px) scale(0.8);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .my-card.glow {
+            background: #fffbe6;
+            color: #b8860b;
+            box-shadow: 0 0 16px 4px #ffd700cc, 0 0 0 2px #ffd700cc inset;
+            transform: scale(1.08) translateY(-8px);
+            z-index: 2;
+        }
+
+        .my-card:hover {
+            transform: translateY(-16px) scale(1.12);
+            z-index: 3;
+            box-shadow: 0 8px 24px #ffd700cc, 0 0 0 2px #ffd700cc inset;
+        }
+
+        .ai-hands-row {
+            display: flex;
+            flex-direction: row;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 32px;
+            margin-bottom: 8px;
+            width: 100%;
+        }
+
+        .ai-hand {
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+            justify-content: center;
+            align-items: center;
+            min-height: 68px;
+        }
+
+        .card.back {
+            width: 48px;
+            height: 68px;
+            background: repeating-linear-gradient(135deg, #ffd700 0 6px, #b8860b 6px 12px);
+            color: transparent;
+            border: 2px solid #ffd700;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px #2226;
+        }
+
+        #field-area {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 8px 0 8px 0;
+            min-height: 80px;
+        }
+
+        #field-label {
+            color: #ffd700;
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        #field-cards {
+            display: flex;
+            flex-direction: row;
+            gap: 8px;
+            min-height: 68px;
+            margin-bottom: 2px;
+        }
+
+        #field-player {
+            color: #fff;
+            font-size: 0.95em;
+            margin-bottom: 2px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>大富豪</h1>
+        <div id="status">ゲーム開始ボタンを押してください</div>
+        <div id="field-area">
+            <div id="field-cards"></div>
+            <div id="field-player"></div>
+        </div>
+        <button id="start-btn" class="fancy-btn">ゲーム開始</button>
+        <button id="pass-btn" class="fancy-btn" style="display:none;">パス</button>
+    </div>
+    <div id="my-hand-area">
+        <div id="my-hand-row1" class="my-hand-row"></div>
+        <div id="my-hand-row2" class="my-hand-row"></div>
+    </div>
+    <script>
+        // カード定義
+        const SUITS = ['♠', '♥', '♦', '♣'];
+        const RANKS = [3, 4, 5, 6, 7, 8, 9, 10, 'J', 'Q', 'K', 'A', 2];
+        function createDeck() {
+            let deck = [];
+            for (let s = 0; s < 4; s++) {
+                for (let r = 0; r < 13; r++) {
+                    deck.push({ suit: SUITS[s], rank: RANKS[r], value: r });
+                }
+            }
+            return deck;
+        }
+        function shuffle(deck) {
+            for (let i = deck.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [deck[i], deck[j]] = [deck[j], deck[i]];
+            }
+            return deck;
+        }
+        let myHand = [], ai1Hand = [], ai2Hand = [], field = [], turn = 0, finished = [false, false, false];
+        let gameStarted = false;
+        let lastField = [], lastFieldPlayer = null, lastFieldAnim = false;
+        let revolution = false;
+        let gameOver = false;
+        const FORBIDDEN_LAST = ['2', '8', 'JOKER'];
+        function cardValue(card) {
+            if (card.rank === 'JOKER') return revolution ? -1 : 100;
+            let v = RANKS.indexOf(card.rank);
+            return revolution ? 12 - v : v;
+        }
+        function isValidPlay(play, field) {
+            if (play.length === 0) return false;
+            if (!play.every(c => c.rank === play[0].rank)) return false;
+            if (field.length === 0) return true;
+            if (play.length !== field.length) return false;
+            // 革命時は強さ逆転
+            return cardValue(play[0]) > cardValue(field[0]);
+        }
+        function deal() {
+            let deck = shuffle(createDeck());
+            myHand = deck.filter((_, i) => i % 3 === 0);
+            ai1Hand = deck.filter((_, i) => i % 3 === 1);
+            ai2Hand = deck.filter((_, i) => i % 3 === 2);
+            myHand.sort(cardSort);
+            ai1Hand.sort(cardSort);
+            ai2Hand.sort(cardSort);
+            field = [];
+            turn = 0;
+            finished = [false, false, false];
+            gameStarted = false;
+            render();
+        }
+        function cardSort(a, b) {
+            if (a.value !== b.value) return a.value - b.value;
+            return SUITS.indexOf(a.suit) - SUITS.indexOf(b.suit);
+        }
+        function getPlayableIndexes() {
+            // 出せるカードのインデックス配列を返す
+            let playable = [];
+            for (let i = 0; i < myHand.length; i++) {
+                if (isValidPlay([myHand[i]], field.length ? field : lastField)) playable.push(i);
+            }
+            return playable;
+        }
+        function render() {
+            // ゲーム開始ボタンの表示制御
+            const startBtn = document.getElementById('start-btn');
+            if (gameStarted) {
+                startBtn.style.display = 'none';
+            } else {
+                startBtn.style.display = '';
+            }
+            // ステータス表示
+            let status = '';
+            if (revolution) status += '【革命中】 ';
+            if (finished[0]) status += 'あなた：上がり！ ';
+            if (finished[1]) status += 'AI1：上がり！ ';
+            if (finished[2]) status += 'AI2：上がり！ ';
+            if (gameOver) status += '（反則負け）';
+            if (finished.filter(f => f).length === 2 || gameOver) {
+                status += 'ゲーム終了';
+            } else {
+                status += ['あなたの番です', 'AI1の番です', 'AI2の番です'][turn];
+            }
+            document.getElementById('status').textContent = status;
+            // 場札（ステータス下に表示）
+            const fieldArea = document.getElementById('field-area');
+            const fieldCards = document.getElementById('field-cards');
+            const fieldPlayer = document.getElementById('field-player');
+            fieldCards.innerHTML = '';
+            // lastFieldがなければfieldを表示
+            let showCards = lastField.length ? lastField : field;
+            if (showCards.length === 0) {
+                fieldPlayer.textContent = '';
+            } else {
+                showCards.forEach((card, i) => {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = 'my-card';
+                    cardDiv.textContent = card.suit + card.rank;
+                    if (lastFieldAnim && i === showCards.length - 1) {
+                        cardDiv.classList.add('animate-in');
+                    }
+                    fieldCards.appendChild(cardDiv);
+                });
+                fieldPlayer.textContent = lastFieldPlayer ? lastFieldPlayer + 'が出した' : '';
+            }
+            lastFieldAnim = false;
+            // パスボタン
+            const passBtn = document.getElementById('pass-btn');
+            if (gameStarted && turn === 0 && !finished[0] && !gameOver) {
+                passBtn.style.display = '';
+                passBtn.disabled = false;
+            } else {
+                passBtn.style.display = 'none';
+            }
+            // 2列分割
+            const row1 = document.getElementById('my-hand-row1');
+            const row2 = document.getElementById('my-hand-row2');
+            row1.innerHTML = '';
+            row2.innerHTML = '';
+            if (gameStarted) {
+                const playable = getPlayableIndexes();
+                const half = Math.ceil(myHand.length / 2);
+                myHand.forEach((card, idx) => {
+                    const cardDiv = document.createElement('div');
+                    cardDiv.className = 'my-card' + (playable.includes(idx) ? ' glow' : '');
+                    cardDiv.textContent = card.suit + card.rank;
+                    if (playable.includes(idx) && turn === 0 && !finished[0] && !gameOver) {
+                        cardDiv.onclick = () => {
+                            let play = [card];
+                            if (!isValidPlay(play, field.length ? field : lastField)) return;
+                            // 上がり禁止
+                            if (myHand.length === 1 && FORBIDDEN_LAST.includes(card.rank)) {
+                                finished[0] = true;
+                                gameOver = true;
+                                lastField = [card];
+                                lastFieldPlayer = 'あなた（反則上がり）';
+                                render();
+                                return;
+                            }
+                            field = [card];
+                            myHand = myHand.filter((_, i) => i !== idx);
+                            if (myHand.length === 0) finished[0] = true;
+                            lastField = [card];
+                            lastFieldPlayer = 'あなた';
+                            lastFieldAnim = true;
+                            if (checkSpecial([card], 0)) {
+                                nextTurn();
+                                return;
+                            }
+                            render();
+                            nextTurn();
+                        };
+                    }
+                    if (idx < half) {
+                        row1.appendChild(cardDiv);
+                    } else {
+                        row2.appendChild(cardDiv);
+                    }
+                });
+            }
+        }
+        document.getElementById('start-btn').onclick = () => {
+            gameStarted = true;
+            render();
+            if (turn === 1 && !finished[1] && !gameOver) setTimeout(() => aiPlay(1), 700);
+            if (turn === 2 && !finished[2] && !gameOver) setTimeout(() => aiPlay(2), 700);
+        };
+        function checkSpecial(play, playerIdx) {
+            // 8切り
+            if (play.length > 0 && play[0].rank === 8) {
+                lastField = [];
+                lastFieldPlayer = (playerIdx === 0 ? 'あなた' : playerIdx === 1 ? 'AI1' : 'AI2') + '（8切り）';
+                render();
+                return true; // 場流し
+            }
+            // 革命
+            if (play.length === 4 && play.every(c => c.rank === play[0].rank)) {
+                revolution = !revolution;
+                lastFieldPlayer = (playerIdx === 0 ? 'あなた' : playerIdx === 1 ? 'AI1' : 'AI2') + '（革命！）';
+                render();
+            }
+            return false;
+        }
+        function nextTurn() {
+            if (finished.filter(f => f).length >= 2 || gameOver) {
+                render();
+                return;
+            }
+            turn = (turn + 1) % 3;
+            while (finished[turn]) turn = (turn + 1) % 3;
+            render();
+            if (turn === 1 && !finished[1] && !gameOver) setTimeout(() => aiPlay(1), 700);
+            if (turn === 2 && !finished[2] && !gameOver) setTimeout(() => aiPlay(2), 700);
+        }
+        function aiPlay(aiNum) {
+            let hand = aiNum === 1 ? ai1Hand : ai2Hand;
+            let candidates = [];
+            for (let i = 0; i < hand.length; i++) {
+                if (isValidPlay([hand[i]], field.length ? field : lastField)) candidates.push([i]);
+            }
+            if (candidates.length === 0) {
+                field = [];
+                lastFieldPlayer = (aiNum === 1 ? 'AI1' : 'AI2') + '（パス）';
+                lastFieldAnim = false;
+                render();
+                nextTurn();
+                return;
+            }
+            candidates.sort((a, b) => cardValue(hand[a[0]]) - cardValue(hand[b[0]]));
+            const playIdxs = candidates[0];
+            let play = playIdxs.map(i => hand[i]);
+            // 上がり禁止
+            if (hand.length === 1 && FORBIDDEN_LAST.includes(hand[playIdxs[0]].rank)) {
+                finished[aiNum] = true;
+                gameOver = true;
+                lastField = play.slice();
+                lastFieldPlayer = (aiNum === 1 ? 'AI1' : 'AI2') + '（反則上がり）';
+                render();
+                return;
+            }
+            field = play.slice();
+            if (aiNum === 1) ai1Hand = ai1Hand.filter((_, i) => !playIdxs.includes(i));
+            if (aiNum === 2) ai2Hand = ai2Hand.filter((_, i) => !playIdxs.includes(i));
+            if ((aiNum === 1 && ai1Hand.length === 0) || (aiNum === 2 && ai2Hand.length === 0)) finished[aiNum] = true;
+            lastField = play.slice();
+            lastFieldPlayer = aiNum === 1 ? 'AI1' : 'AI2';
+            lastFieldAnim = true;
+            if (checkSpecial(play, aiNum)) {
+                nextTurn();
+                return;
+            }
+            render();
+            nextTurn();
+        }
+        document.getElementById('pass-btn').onclick = () => {
+            if (gameStarted && turn === 0 && !finished[0] && !gameOver) {
+                // パス時はlastFieldを維持
+                field = [];
+                lastFieldPlayer = 'あなた（パス）';
+                lastFieldAnim = false;
+                render();
+                nextTurn();
+            }
+        };
+        // UIにAI2人分の手札欄を追加
+        window.addEventListener('DOMContentLoaded', () => {
+            // 既存のmy-handの直前にAI1,AI2手札を挿入
+            const myHandDiv = document.getElementById('my-hand');
+            const ai1 = document.createElement('div');
+            ai1.id = 'ai1-hand';
+            ai1.style.marginBottom = '8px';
+            ai1.innerText = '';
+            myHandDiv.parentNode.insertBefore(ai1, myHandDiv);
+            const ai2 = document.createElement('div');
+            ai2.id = 'ai2-hand';
+            ai2.style.marginBottom = '8px';
+            ai2.innerText = '';
+            myHandDiv.parentNode.insertBefore(ai2, myHandDiv);
+        });
+        deal();
+    </script>
+</body>
+
+</html>
