@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>タワーディフェンス</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #181818;
+            color: #fff;
+            text-align: center;
+            font-family: 'Press Start 2P', cursive, sans-serif;
+            letter-spacing: 1px;
+        }
+
+        #game-canvas {
+            background: #222;
+            margin: 24px auto;
+            display: block;
+            border-radius: 0;
+            box-shadow: 0 0 0 8px #444, 0 8px 32px #000a;
+            image-rendering: pixelated;
+        }
+
+        .info {
+            margin: 8px;
+            font-size: 0.9em;
+        }
+
+        .tower-select {
+            margin: 8px 0;
+        }
+
+        .tower-btn {
+            font-family: 'Press Start 2P', cursive, sans-serif;
+            font-size: 0.8em;
+            padding: 6px 16px;
+            border-radius: 0;
+            border: 2px solid #fff;
+            background: #333;
+            color: #ffd700;
+            cursor: pointer;
+            margin: 0 4px;
+            letter-spacing: 1px;
+            box-shadow: 0 2px 0 #000;
+        }
+
+        .tower-btn.selected,
+        .tower-btn:active {
+            background: #ffd700;
+            color: #222;
+            border-color: #ffd700;
+        }
+
+        button {
+            font-family: 'Press Start 2P', cursive, sans-serif;
+            font-size: 1em;
+            padding: 8px 24px;
+            border-radius: 0;
+            border: 2px solid #fff;
+            background: #333;
+            color: #ffd700;
+            cursor: pointer;
+            margin: 8px;
+            letter-spacing: 1px;
+            box-shadow: 0 2px 0 #000;
+        }
+
+        button:hover {
+            background: #ffd700;
+            color: #222;
+            border-color: #ffd700;
+        }
+
+        h1 {
+            font-size: 1.5em;
+            color: #ffd700;
+            text-shadow: 2px 2px 0 #000, 0 0 8px #fff2;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>タワーディフェンス</h1>
+    <div class="info">
+        <span id="life">ライフ: 10</span>　
+        <span id="money">お金: 100</span>
+        <button id="start-btn">スタート</button>
+    </div>
+    <div class="tower-select">
+        <button class="tower-btn selected" id="tower-normal">ノーマル</button>
+        <button class="tower-btn" id="tower-slow">スロー</button>
+        <button class="tower-btn" id="tower-power">高火力</button>
+    </div>
+    <canvas id="game-canvas" width="640" height="384"></canvas>
+    <script src="tower-defense.js"></script>
+</body>
+
+</html>

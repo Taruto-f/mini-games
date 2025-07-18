@@ -377,6 +377,7 @@
         let revolution = false;
         let gameOver = false;
         const FORBIDDEN_LAST = ['2', '8', 'JOKER'];
+        let passCount = 0; // パス回数を追加
         function cardValue(card) {
             if (card.rank === 'JOKER') return revolution ? -1 : 100;
             let v = RANKS.indexOf(card.rank);
@@ -492,6 +493,7 @@
                                 render();
                                 return;
                             }
+                            passCount = 0; // ここでリセット
                             field = [card];
                             myHand = myHand.filter((_, i) => i !== idx);
                             if (myHand.length === 0) finished[0] = true;
@@ -516,6 +518,7 @@
         }
         document.getElementById('start-btn').onclick = () => {
             gameStarted = true;
+            passCount = 0; // ゲーム開始時にリセット
             render();
             if (turn === 1 && !finished[1] && !gameOver) setTimeout(() => aiPlay(1), 700);
             if (turn === 2 && !finished[2] && !gameOver) setTimeout(() => aiPlay(2), 700);
@@ -554,13 +557,22 @@
                 if (isValidPlay([hand[i]], field.length ? field : lastField)) candidates.push([i]);
             }
             if (candidates.length === 0) {
+                passCount++;
                 field = [];
                 lastFieldPlayer = (aiNum === 1 ? 'AI1' : 'AI2') + '（パス）';
                 lastFieldAnim = false;
+                // パスが一周したら場流し
+                if (passCount >= 2) {
+                    field = [];
+                    lastField = [];
+                    lastFieldPlayer = '';
+                    passCount = 0;
+                }
                 render();
                 nextTurn();
                 return;
             }
+            passCount = 0; // 誰かが出したらリセット
             candidates.sort((a, b) => cardValue(hand[a[0]]) - cardValue(hand[b[0]]));
             const playIdxs = candidates[0];
             let play = playIdxs.map(i => hand[i]);
@@ -589,10 +601,18 @@
         }
         document.getElementById('pass-btn').onclick = () => {
             if (gameStarted && turn === 0 && !finished[0] && !gameOver) {
+                passCount++;
                 // パス時はlastFieldを維持
                 field = [];
                 lastFieldPlayer = 'あなた（パス）';
                 lastFieldAnim = false;
+                // パスが一周したら場流し
+                if (passCount >= 2) {
+                    field = [];
+                    lastField = [];
+                    lastFieldPlayer = '';
+                    passCount = 0;
+                }
                 render();
                 nextTurn();
             }
